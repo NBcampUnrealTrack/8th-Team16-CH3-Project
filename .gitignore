@@ -1,24 +1,57 @@
+# Unreal generated files
+.vs/
+.vscode/
+.idea/
 Binaries/
 Build/
 DerivedDataCache/
 Intermediate/
 Saved/
 
+# Unreal local files
 *.sln
 *.suo
 *.xcodeproj
 *.xcworkspace
 *.VC.db
 *.VC.VC.opendb
+*.opensdf
+*.sdf
 
+# Logs / temp
 *.log
 *.tmp
 
+# OS files
 .DS_Store
-
-.vscode/
-.idea/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Visual Studio cache
 .vs/
 *.ipch
+*.pdb
+*.ilk
+*.obj
+*.pch
+*.idb
+*.tlog
+*.lastbuildstate
+
+# Rider / JetBrains
+.idea/
+*.sln.DotSettings.user
+
+# VS Code
+.vscode/
+
+# Unreal autosaves and backups
+Saved/Autosaves/
+Saved/Backup/
+Saved/Logs/
+Saved/Crashes/
+Saved/Config/CrashReportClient/
+
+# Unreal user settings
+Config/DefaultEditorPerProjectUserSettings.ini
