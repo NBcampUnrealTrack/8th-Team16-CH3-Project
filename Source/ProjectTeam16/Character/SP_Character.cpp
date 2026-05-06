@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h" 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
 
 ASP_Character::ASP_Character()
 {
@@ -39,7 +41,10 @@ ASP_Character::ASP_Character()
 		// 정면(X: 100), 좌우(Y: YPos), 높이(Z: -30)
 		NewGun->SetRelativeLocation(FVector(50.f, YPos, 0.f));
 
+		// 총기 매쉬 
 		GunMeshes.Add(NewGun);
+
+		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; //기본 속도조절
 	}
 }
 
@@ -109,9 +114,9 @@ void ASP_Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 예: 마우스 회전에 따라 총기 묶음이 부드럽게 따라오도록 보정하거나
-	// 캐릭터가 움직일 때 총기들이 출렁거리는 효과(Sway)를 구현할 수 있습니다.
+	HandleStamina(DeltaTime); // 매 프레임 스테미너 계산
 
+	// 마우스 회전에 따라 총기 묶음이 부드럽게 따라오도록 보정
 	for (int32 i = 0; i < GunMeshes.Num(); i++)
 	{
 		if (UStaticMeshComponent* Gun = GunMeshes[i])
@@ -136,6 +141,14 @@ void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		// 움직임과 시선 처리
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASP_Character::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASP_Character::Look);
+		
+		//점프
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+		// 달리기 
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ASP_Character::SprintStart);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASP_Character::SprintEnd);
 	}
 }
 
@@ -156,5 +169,41 @@ void ASP_Character::Look(const FInputActionValue& Value)
 	{
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void ASP_Character::SprintStart()
+{
+	// 스테미너가 있을 때만 달리기 시작
+	if (CurrentStamina > 0.0f)
+	{
+		bIsSprinting = true;
+		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+	}
+}
+
+void ASP_Character::SprintEnd()
+{
+	bIsSprinting = false;
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+}
+
+void ASP_Character::HandleStamina(float DeltaTime)
+{
+	if (bIsSprinting)
+	{
+		// 달리는 중: 소모
+		CurrentStamina = FMath::Max(0.0f, CurrentStamina - (StaminaDrainRate * DeltaTime));
+
+		// 스테미너가 다 떨어지면 강제로 달리기 중지
+		if (CurrentStamina <= 0.0f)
+		{
+			SprintEnd();
+		}
+	}
+	else
+	{
+		// 쉬는 중: 회복 (최대치까지)
+		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenRate * DeltaTime));
 	}
 }
