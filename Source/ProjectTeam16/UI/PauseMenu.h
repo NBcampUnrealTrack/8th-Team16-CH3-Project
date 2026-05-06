@@ -17,6 +17,7 @@ class PROJECTTEAM16_API UPauseMenu : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Show();

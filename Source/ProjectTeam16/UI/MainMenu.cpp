@@ -3,6 +3,7 @@
 #include "ProjectTeam16/UI/MainMenu.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/Button.h"
 
 void UMainMenu::NativeConstruct()
@@ -37,6 +38,8 @@ void UMainMenu::Hide()
 
 void UMainMenu::OnStartButtonClicked()
 {
+	UGameplayStatics::SetGamePaused(GetWorld(), false);
+
 	RemoveFromParent();
 
 	APlayerController* PC = GetOwningPlayer();

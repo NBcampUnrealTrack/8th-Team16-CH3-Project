@@ -14,7 +14,12 @@ class PROJECTTEAM16_API ATeam16GameMode : public AGameMode
 	GENERATED_BODY()
 	
 public:
+	ATeam16GameMode();
+
 	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowMainMenu();
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
