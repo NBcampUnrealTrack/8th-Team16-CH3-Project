@@ -24,6 +24,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "AI")
 	float DamageAmount = 5.0f;
 
+	float LastAttackTime;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	int32 ExpReward = 1;
 

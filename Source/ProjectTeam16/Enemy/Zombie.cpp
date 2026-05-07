@@ -15,8 +15,8 @@ AZombie::AZombie()
 
 	// 플레이어를 감지하기 위한 시야 센서입니다.
 	PawnSensing = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSensing"));
-	PawnSensing->SightRadius = 2000.0f;
-	PawnSensing->SetPeripheralVisionAngle(45.0f);
+	PawnSensing->SightRadius = 1500.0f;
+	PawnSensing->SetPeripheralVisionAngle(180.0f);
 
 	// 플레이어가 공격 범위에 들어오면 반복 공격 타이머를 시작합니다.
 	AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
@@ -103,7 +103,10 @@ void AZombie::OnAttackOverlapEnd(
 {
 	if (OtherActor && OtherActor == TargetPlayer)
 	{
-		GetWorldTimerManager().ClearTimer(AttackTimerHandle);
+		AttackLoop(); //공격범위에 들어오면 즉시 공격
+
+		// 1.5초마다 반복 공격 타이머 시작
+		GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
 	}
 }
 
@@ -111,7 +114,15 @@ void AZombie::AttackLoop()
 {
 	if (IsValid(TargetPlayer))
 	{
-		UGameplayStatics::ApplyDamage(TargetPlayer, DamageAmount, GetController(), this, nullptr);
-		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Zombie Attack!"));
+		float CurrentTime = GetWorld()->GetTimeSeconds();
+
+		// 마지막 공격으로부터 1.5초가 지났을 때만 실제 데미지 적용
+		if (CurrentTime - LastAttackTime >= 1.5f)
+		{
+			UGameplayStatics::ApplyDamage(TargetPlayer, DamageAmount, GetController(), this, nullptr);
+			GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Zombie Attack!"));
+
+			LastAttackTime = CurrentTime; // 마지막 공격 시간 갱신
+		}
 	}
 }
