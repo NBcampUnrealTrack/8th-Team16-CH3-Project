@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "ProjectTeam16/UI/MainMenu.h"
+#include "Team16PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerController.h"
@@ -49,6 +50,11 @@ void UMainMenu::OnStartButtonClicked()
 
 		FInputModeGameOnly InputMode;
 		PC->SetInputMode(InputMode);
+
+		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
+		{
+			Team16PlayerController->ShowInGameHUD();
+		}
 	}
 }
 

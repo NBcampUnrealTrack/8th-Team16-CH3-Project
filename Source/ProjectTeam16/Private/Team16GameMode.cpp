@@ -21,6 +21,11 @@ void ATeam16GameMode::BeginPlay()
         APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
         if (PC)
         {
+            if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
+            {
+                Team16PlayerController->ShowInGameHUD();
+            }
+
             PC->bShowMouseCursor = false;
 
             FInputModeGameOnly InputMode;
@@ -58,6 +63,11 @@ void ATeam16GameMode::ShowMainMenu()
         APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
         if (PC)
         {
+            if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
+            {
+                Team16PlayerController->HideInGameHUD();
+            }
+
             PC->bShowMouseCursor = true;
 
             FInputModeUIOnly InputMode;

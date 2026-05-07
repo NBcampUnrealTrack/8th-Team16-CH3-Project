@@ -6,6 +6,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Team16PlayerController.h"
 
 
 ASP_Character::ASP_Character()
@@ -52,6 +53,9 @@ void ASP_Character::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CurrentHealth = MaxHealth;
+	SyncHUDValues();
+
 	// 입력 매핑 컨텍스트 등록
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
@@ -63,6 +67,50 @@ void ASP_Character::BeginPlay()
 
 	// 자동 사격 타이머 시작 (연사 속도마다 AutoFire 호출)
 	GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, FireRate, true);
+}
+
+float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	if (ActualDamage <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	// 좀비에게 맞으면 체력을 줄이고 HUD의 체력 바와 HpText를 바로 갱신합니다.
+	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth);
+	SyncHUDValues();
+
+	return ActualDamage;
+}
+
+void ASP_Character::SyncHUDValues()
+{
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->UpdateHUDHealth(CurrentHealth, MaxHealth);
+		Team16PlayerController->UpdateHUDExperience(CurrentExp, MaxExp);
+		Team16PlayerController->UpdateHUDLevel(CurrentLevel);
+	}
+}
+
+void ASP_Character::AddExperience(int32 ExpAmount)
+{
+	if (ExpAmount <= 0)
+	{
+		return;
+	}
+
+	CurrentExp += ExpAmount;
+
+	// 경험치가 가득 차면 레벨을 올리고 남은 경험치는 다음 레벨로 넘깁니다.
+	while (MaxExp > 0.0f && CurrentExp >= MaxExp)
+	{
+		CurrentExp -= MaxExp;
+		CurrentLevel++;
+	}
+
+	SyncHUDValues();
 }
 
 

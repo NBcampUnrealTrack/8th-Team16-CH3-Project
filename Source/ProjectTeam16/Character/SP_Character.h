@@ -13,6 +13,19 @@ class ASP_Character : public ACharacter
 public:
 	ASP_Character();
 
+	virtual float TakeDamage(
+		float Damage,
+		struct FDamageEvent const& DamageEvent,
+		AController* EventInstigator,
+		AActor* DamageCauser
+	) override;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SyncHUDValues();
+
+	UFUNCTION(BlueprintCallable, Category = "Level")
+	void AddExperience(int32 ExpAmount);
+
 #pragma region Gun
 protected:
 	virtual void BeginPlay() override;
@@ -36,6 +49,23 @@ protected:
 	// 사격 설정 (블루프린트에서 수정 가능)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float FireRate = 0.15f;
+
+	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float MaxHealth = 100.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	float CurrentHealth = 100.0f;
+
+	// 플레이어 성장 값입니다. 경험치 바는 CurrentExp / MaxExp 비율로 표시됩니다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
+	float MaxExp = 100.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Level")
+	float CurrentExp = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Level")
+	int32 CurrentLevel = 1;
 
 	// 총기가 사격 방향으로 반동을 주는 연출용
 	UPROPERTY(EditAnywhere, Category = "Visual")

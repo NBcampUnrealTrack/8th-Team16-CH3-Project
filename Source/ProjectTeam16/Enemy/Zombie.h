@@ -22,9 +22,14 @@ protected:
 	float MaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "AI")
-	float DamageAmount = 10.0f;
+	float DamageAmount = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	int32 ExpReward = 1;
 
 	FTimerHandle AttackTimerHandle;
+
+	bool bIsDead = false;
 
 	//탐지된 플레이어 정보저장
 	APawn* TargetPlayer = nullptr;

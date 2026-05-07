@@ -6,7 +6,6 @@
 #include "Blueprint/UserWidget.h"
 #include "InGameHUD.generated.h"
 
-class UButton;
 class UProgressBar;
 class UTextBlock;
 
@@ -24,25 +23,40 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Hide();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateHealth(float CurrentHealth, float MaxHealth);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateExperience(float CurrentExp, float MaxExp);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateLevel(int32 CurrentLevel);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateZombieKillCount(int32 KillCount);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateTime(int32 RemainingSeconds);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void HideTime();
+
 protected:
-	UFUNCTION()
-	void OnPauseButtonClicked();
-
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UButton> PauseButton;
-
-	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> HealthText;
-
-	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> AmmoText;
-
-	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> ScoreText;
+	TObjectPtr<UProgressBar> ExperienceProgressBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> HealthProgressBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UProgressBar> StaminaProgressBar;
+	TObjectPtr<UTextBlock> HpText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> LevelText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> ZombieKillCountText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> TimeText;
 };
