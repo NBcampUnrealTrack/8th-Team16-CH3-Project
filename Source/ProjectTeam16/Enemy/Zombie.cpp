@@ -89,8 +89,10 @@ void AZombie::OnAttackOverlapBegin(
 {
 	if (OtherActor && OtherActor == TargetPlayer)
 	{
-		// 공격 범위 안에 있는 동안 1.5초마다 플레이어에게 데미지를 줍니다.
-		GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 0.0f);
+		AttackLoop(); //공격범위에 들어오면 즉시 공격
+
+		// 1.5초마다 반복 공격 타이머 시작
+		GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
 	}
 }
 
@@ -103,10 +105,7 @@ void AZombie::OnAttackOverlapEnd(
 {
 	if (OtherActor && OtherActor == TargetPlayer)
 	{
-		AttackLoop(); //공격범위에 들어오면 즉시 공격
-
-		// 1.5초마다 반복 공격 타이머 시작
-		GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
+		GetWorldTimerManager().ClearTimer(AttackTimerHandle);
 	}
 }
 
