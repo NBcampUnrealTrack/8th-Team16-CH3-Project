@@ -7,6 +7,7 @@
 #include "InputAction.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectTeam16/Character/SP_Character.h"
+#include "ProjectTeam16/UI/GameOver.h"
 #include "ProjectTeam16/UI/InGameHUD.h"
 
 void ATeam16PlayerController::SetupInputComponent()
@@ -177,6 +178,50 @@ void ATeam16PlayerController::RegisterZombieKill(int32 ExpReward)
 	{
 		PlayerCharacter->AddExperience(ExpReward);
 	}
+}
+
+void ATeam16PlayerController::ShowGameOver()
+{
+	UWorld* World = GetWorld();
+	if (!World || !GameOverWidgetClass)
+	{
+		return;
+	}
+
+	HideInGameHUD();
+
+	if (PauseMenuWidgetInstance)
+	{
+		PauseMenuWidgetInstance->RemoveFromParent();
+		PauseMenuWidgetInstance = nullptr;
+	}
+
+	if (!GameOverWidgetInstance)
+	{
+		GameOverWidgetInstance = CreateWidget<UGameOver>(this, GameOverWidgetClass);
+	}
+
+	if (!GameOverWidgetInstance)
+	{
+		return;
+	}
+
+	if (!GameOverWidgetInstance->IsInViewport())
+	{
+		GameOverWidgetInstance->AddToViewport();
+	}
+
+	GameOverWidgetInstance->Show();
+	GameOverWidgetInstance->UpdateScore(ZombieKillCount);
+
+	UGameplayStatics::SetGamePaused(World, true);
+
+	bShowMouseCursor = true;
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(GameOverWidgetInstance->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
 }
 
 void ATeam16PlayerController::StartGameTimer()

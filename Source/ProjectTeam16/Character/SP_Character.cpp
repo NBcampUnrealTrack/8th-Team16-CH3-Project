@@ -73,6 +73,16 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth);
 	SyncHUDValues();
 
+	if (CurrentHealth <= 0.0f && !bIsDead)
+	{
+		bIsDead = true;
+
+		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+		{
+			Team16PlayerController->ShowGameOver();
+		}
+	}
+
 	return ActualDamage;
 }
 
@@ -348,5 +358,10 @@ void ASP_Character::HandleStamina(float DeltaTime)
 
 		// 스테미너가 0일 때 속도가 안 올라가게
 		if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
+	}
+
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
 	}
 }

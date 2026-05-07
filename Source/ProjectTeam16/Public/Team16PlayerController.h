@@ -7,6 +7,7 @@
 #include "Team16PlayerController.generated.h"
 
 class UInputAction;
+class UGameOver;
 class UInGameHUD;
 class UUserWidget;
 
@@ -45,6 +46,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void RegisterZombieKill(int32 ExpReward);
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowGameOver();
+
 protected:
 	void StartGameTimer();
 	void StopGameTimer();
@@ -59,6 +63,12 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> PauseMenuWidgetInstance;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UGameOver> GameOverWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UGameOver> GameOverWidgetInstance;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UInGameHUD> HUDWidgetClass;

@@ -24,6 +24,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Hide();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateScore(int32 KillCount);
+
 protected:
 	UFUNCTION()
 	void OnRetryButtonClicked();
@@ -31,11 +34,17 @@ protected:
 	UFUNCTION()
 	void OnMainMenuButtonClicked();
 
+	UFUNCTION()
+	void OnQuitGameButtonClicked();
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RetryButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> MainMenuButton;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> QuitGameButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> GameOverText;

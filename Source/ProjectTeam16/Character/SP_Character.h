@@ -55,6 +55,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Health")
 	float CurrentHealth = 100.0f;
 
+	bool bIsDead = false;
+
 	// 플레이어 성장 값입니다. 경험치 바는 CurrentExp / MaxExp 비율로 표시됩니다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
 	float MaxExp = 100.0f;
@@ -148,7 +150,7 @@ protected:
 	float MaxStamina = 100.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Stamina")   //UI에 표기 가능
-		float CurrentStamina;
+	float CurrentStamina = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // 초당 소모량

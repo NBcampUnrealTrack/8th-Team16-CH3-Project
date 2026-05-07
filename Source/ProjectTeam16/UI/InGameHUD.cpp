@@ -20,6 +20,17 @@ void UInGameHUD::NativeConstruct()
 		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: HealthProgressBar is not bound. Check widget name and Is Variable."));
 	}
 
+	// BP에서 StaminaProgressBar 이름이 정확히 바인딩되면, 스태미나 바는 100%로 시작합니다.
+	if (StaminaProgressBar)
+	{
+		StaminaProgressBar->SetFillColorAndOpacity(FLinearColor::Yellow);
+		StaminaProgressBar->SetPercent(1.0f);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: StaminaProgressBar is not bound. Check widget name and Is Variable."));
+	}
+
 	// 경험치 바도 처음에는 0%에서 시작하도록 명시합니다.
 	if (ExperienceProgressBar)
 	{
@@ -70,6 +81,11 @@ void UInGameHUD::UpdateStamina(float CurrentStamina, float MaxStamina)
 	if (StaminaProgressBar)
 	{
 		StaminaProgressBar->SetPercent(StaminaPercent);
+		StaminaProgressBar->SetFillColorAndOpacity(FLinearColor::Yellow);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: StaminaProgressBar is null. CurrentStamina=%f MaxStamina=%f Percent=%f"), CurrentStamina, MaxStamina, StaminaPercent);
 	}
 }
 
