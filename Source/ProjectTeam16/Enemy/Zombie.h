@@ -21,7 +21,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HP")
 	float MaxHealth;
 
-	UPROPERTY(EditAnywhere, Category = "AI")
+	UPROPERTY(EditAnywhere, Category = "Damage")
 	float DamageAmount = 5.0f;
 
 	float LastAttackTime;
