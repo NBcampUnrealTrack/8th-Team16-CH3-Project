@@ -1,8 +1,11 @@
+//SP_Character.h
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "ProjectTeam16/Weapons/SP_WeaponType.h"
 #include "SP_Character.generated.h"
 
 UCLASS()
@@ -26,9 +29,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level")
 	void AddExperience(int32 ExpAmount);
 
-#pragma region Gun
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override; // 입력 바인딩
+
+#pragma region Components
+protected:
 
 	// 컴포넌트 설정 1인칭 카메라
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -38,18 +45,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USceneComponent* WeaponRoot;
 
-	// 총기 메쉬들을 담을 배열
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TArray<UStaticMeshComponent*> GunMeshes;
+#pragma endregion
 
-	// 총 개수 (블루프린트에서 수정 가능)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-	int32 GunCount = 10;
-
-	// 사격 설정 (블루프린트에서 수정 가능)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float FireRate = 0.15f;
-
+#pragma region status
 	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
 	float MaxHealth = 100.0f;
@@ -67,20 +65,55 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Level")
 	int32 CurrentLevel = 1;
 
+#pragma endregion	
+
+#pragma region WeaponSystem
+
+	// 스폰할 무기 블루프린트 클래스
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	TSubclassOf<class ASP_WeaponBase> WeaponClass;
+
+	// 팀원 시스템: 소지 무기 데이터 목록
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	TArray<FWeaponData> OwnedWeapons;
+
+	// 스폰되어 관리되는 무기 액터들
+	UPROPERTY()
+	TArray<class ASP_WeaponBase*> EquippedWeapons;
+
+	// 무기 등급별 데이터 테이블
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	TMap<EWeaponType, FGunStats> GunDataTable;
+
+	// 무기 추가 (팀원 로직 통합)
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void AddWeapon(EWeaponType WeaponType);
+
+	// 무기 조합 (팀원 로직 통합)
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void CombineWeapons(EWeaponType TypeA, EWeaponType TypeB);
+
+	// 무기 비주얼/스탯 업데이트 (강화 시 호출)
+	void UpdateWeaponVisuals(int32 Index);
+
+	// 무기 위치 재정렬
+	void RearrangeWeapons();
+
+	// 자동 사격 로직
+	void AutoFire();
+
 	// 총기가 사격 방향으로 반동을 주는 연출용
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	float RecoilIntensity = 5.0f;
 
 	FTimerHandle FireTimerHandle;
 
-	// 핵심 기능 함수
-	void AutoFire();
+
+
 #pragma endregion	
 
-public:
-	virtual void Tick(float DeltaTime) override;
 
-#pragma region Input
+#pragma region InputAndMovement
 protected:
 	// 맵핑
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -115,7 +148,7 @@ protected:
 	float MaxStamina = 100.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Stamina")   //UI에 표기 가능
-	float CurrentStamina;
+		float CurrentStamina;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // 초당 소모량
@@ -133,8 +166,6 @@ protected:
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
 
-protected:
-	// 입력 바인딩
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+#pragma endregion
 };
-#pragma endregion	
