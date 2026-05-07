@@ -105,10 +105,7 @@ void AZombie::OnAttackOverlapEnd(
 {
 	if (OtherActor && OtherActor == TargetPlayer)
 	{
-		AttackLoop(); //공격범위에 들어오면 즉시 공격
-
-		// 1.5초마다 반복 공격 타이머 시작
-		GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
+		GetWorldTimerManager().ClearTimer(AttackTimerHandle);
 	}
 }
 
