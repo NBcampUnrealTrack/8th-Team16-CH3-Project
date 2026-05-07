@@ -20,7 +20,8 @@ public:
     // 무기 데이터 설정 함수
     void SetWeaponStats(FGunStats NewStats) { CurrentStats = NewStats; }
 
-
+    // 메쉬를 동적으로 바꾸기 위한 함수
+    void SetWeaponVisuals(UStaticMesh* NewMesh);
 
 protected:
     UPROPERTY(VisibleAnywhere)

@@ -1,4 +1,4 @@
-//SP_Character.h
+//SP_Character.h // 최종
 
 #pragma once
 
@@ -47,6 +47,20 @@ protected:
 
 #pragma endregion
 
+#pragma region Test 
+protected:
+	// 테스트용 입력 액션 (입력 시스템에 등록 후 사용)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Test")
+	class UInputAction* TestAddWeaponAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Test")
+	class UInputAction* TestCombineAction;
+
+	// 테스트 실행 함수
+	void DebugAddRandomWeapon();
+	void DebugTryCombine();
+#pragma endregion
+
 #pragma region status
 	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
@@ -83,9 +97,9 @@ protected:
 	UPROPERTY()
 	TArray<class ASP_WeaponBase*> EquippedWeapons;
 
-	// 무기 등급별 데이터 테이블
-	UPROPERTY(EditAnywhere, Category = "Weapon")
-	TMap<EWeaponType, FGunStats> GunDataTable;
+	// 기존 TMap 대신 UDataTable 사용
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	class UDataTable* GunDataTable;
 
 	// 무기 추가 (팀원 로직 통합)
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
@@ -109,8 +123,6 @@ protected:
 	float RecoilIntensity = 5.0f;
 
 	FTimerHandle FireTimerHandle;
-
-
 
 #pragma endregion	
 
@@ -150,7 +162,7 @@ protected:
 	float MaxStamina = 100.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Stamina")   //UI에 표기 가능
-	float CurrentStamina = 100.0f;
+		float CurrentStamina = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // 초당 소모량
@@ -167,7 +179,6 @@ protected:
 	void SprintStart();                        //달리기 시작
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
-
 
 #pragma endregion
 };

@@ -1,4 +1,4 @@
-//SP_Character.cpp  
+//SP_Character.cpp   //최종..
 
 #include "ProjectTeam16/Character/SP_Character.h"
 #include "ProjectTeam16/Weapons/SP_WeaponBase.h"
@@ -26,7 +26,14 @@ ASP_Character::ASP_Character()
 	WeaponRoot->SetupAttachment(FPSCamera);
 
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; //기본 속도조절
-	
+
+	// 데이터 테이블 에셋 경로 자동 로드 예시
+	static ConstructorHelpers::FObjectFinder<UDataTable> DataTableAsset(TEXT("/Game/Data/DT_WeaponStats.DT_WeaponStats"));
+	if (DataTableAsset.Succeeded())
+	{
+		GunDataTable = DataTableAsset.Object;
+	}
+
 }
 
 void ASP_Character::BeginPlay()
@@ -45,21 +52,25 @@ void ASP_Character::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-
+	//초기무기 지급
 	AddWeapon(EWeaponType::Standard);
 
-	// 현재 소지한 첫 번째 무기 스탯 기준으로 타이머 시작
-	if (OwnedWeapons.Num() > 0)
+	//지급된 무기의 데이터 테이블 값을 찾아 타이머 시작
+	if (GunDataTable && OwnedWeapons.Num() > 0)
 	{
-		EWeaponType FirstType = OwnedWeapons[0].WeaponType;
-		if (GunDataTable.Contains(FirstType))
+		EWeaponType InitType = OwnedWeapons[0].WeaponType;
+
+		// Enum을 RowName으로 변환
+		FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)InitType);
+		FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("InitTimer"));
+
+		if (RowData)
 		{
-			float Interval = GunDataTable[FirstType].FireRate;
-			GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, Interval, true);
+			GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, RowData->FireRate, true);
 		}
 	}
-
 }
+
 
 float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
@@ -191,35 +202,93 @@ void ASP_Character::CombineWeapons(EWeaponType TypeA, EWeaponType TypeB)
 		ResultType = EWeaponType::Special;
 	}
 
-	// 3. 결과 생성 및 타이머 갱신
+
+	//ResultType이 None이 아님을 확실히 체크
 	if (ResultType != EWeaponType::None)
 	{
 		AddWeapon(ResultType);
-		if (GunDataTable.Contains(ResultType))
+
+		if (GunDataTable)// 결과 생성 및 타이머 갱신
 		{
-			float NewInterval = GunDataTable[ResultType].FireRate;
-			GetWorldTimerManager().ClearTimer(FireTimerHandle);
-			GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, NewInterval, true);
+			// Enum을 RowName으로 변환
+			FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)ResultType);
+			FName RowName = FName(*RowNameString);
+
+			// 데이터 테이블에서 정보 찾기
+			static const FString ContextString(TEXT("CombineWeaponTimer"));
+			FGunStats* RowData = GunDataTable->FindRow<FGunStats>(RowName, ContextString);
+
+			if (RowData)
+			{
+				float NewInterval = RowData->FireRate;
+
+				// 기존 타이머를 초기화하고 새로운 연사 속도로 재설정
+				GetWorldTimerManager().ClearTimer(FireTimerHandle);
+				GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, NewInterval, true);
+			}
+			else
+			{
+				// ResultType은 None이 아닌데 테이블에 없는 경우 (데이터 누락)
+				UE_LOG(LogTemp, Warning, TEXT("ResultType [%s] exists but row missing in DT!"), *RowNameString);
+			}
 		}
+	}
+	else
+	{
+		// 조합법이 없는 경우에 대한 로그 (선택 사항)
+		UE_LOG(LogTemp, Log, TEXT("No valid combination for these weapons."));
 	}
 }
 
 // 무기 스탯 및 비주얼 업데이트 보조 함수
 void ASP_Character::UpdateWeaponVisuals(int32 Index)
 {
+	//인덱스 유효성 검사
 	if (!EquippedWeapons.IsValidIndex(Index) || !OwnedWeapons.IsValidIndex(Index)) return;
+	if (!EquippedWeapons[Index]) return;
 
-	//ASP_WeaponBase* Weapon = EquippedWeapons[Index];
+
 	EWeaponType Type = OwnedWeapons[Index].WeaponType;
+
+	//None 타입 처리: 데이터 테이블에 None 
+	if (Type == EWeaponType::None) return;
+
 	int32 Level = OwnedWeapons[Index].EnhanceLevel;
 
-	if (GunDataTable.Contains(Type))
+	//Enum을 데이터 테이블의 Row Name(행 이름)으로 변환
+	FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)Type);
+	FName RowName = FName(*RowNameString);
+
+	//데이터 테이블에서 정보 찾기
+	static const FString ContextString(TEXT("WeaponUpdateContext"));
+	FGunStats* RowData = GunDataTable->FindRow<FGunStats>(RowName, ContextString);
+
+	if (RowData)
 	{
-		FGunStats Stats = GunDataTable[Type];
-		Stats.Damage += (Stats.Damage * (Level * 0.2f)); // 강화당 20% 증가
-		EquippedWeapons[Index]->SetWeaponStats(Stats);
+		//원본 데이터를 복사해서 가져옴 (원본 보존)
+		FGunStats UpdatedStats = *RowData;
+
+		//강화 수치 적용 (기본 데미지의 레벨당 20% 추가)
+		UpdatedStats.Damage += (UpdatedStats.Damage * (Level * 0.2f));
+
+		//무기 액터에 외형(Mesh) 변경 적용
+		EquippedWeapons[Index]->SetWeaponVisuals(UpdatedStats.WeaponMesh);
+
+		//최종 계산된 스탯(데미지, 사운드, 이펙트 포함) 전달
+		EquippedWeapons[Index]->SetWeaponStats(UpdatedStats);
+
+		// 강화 수치 로그 출력 테스트용
+		UE_LOG(LogTemp, Log, TEXT("Weapon %s Updated: Level %d, Final Damage: %f"), *RowNameString, Level, UpdatedStats.Damage);
 	}
+	else
+	{
+		// 이 로그가 뜬다면 데이터 테이블의 Row Name과 Enum 이름이 맞는지 확인해야 합니다.
+		UE_LOG(LogTemp, Warning, TEXT("Row [%s] not found in GunDataTable!"), *RowNameString);
+	}
+
+
 }
+
 
 // 3. 무기 재배치 (간격 조정)
 void ASP_Character::RearrangeWeapons()
@@ -300,6 +369,11 @@ void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		// 달리기 
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ASP_Character::SprintStart);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASP_Character::SprintEnd);
+
+		//총기 테스트용 추가 삭제예정
+		EnhancedInputComponent->BindAction(TestAddWeaponAction, ETriggerEvent::Started, this, &ASP_Character::DebugAddRandomWeapon);
+		EnhancedInputComponent->BindAction(TestCombineAction, ETriggerEvent::Started, this, &ASP_Character::DebugTryCombine);
+
 	}
 }
 
@@ -363,5 +437,30 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 	{
 		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
+	}
+}
+
+void ASP_Character::DebugAddRandomWeapon()
+{
+	// 하위 4개 무기 중 하나를 무작위로 추가 (테스트용)
+	EWeaponType RandomType = static_cast<EWeaponType>(FMath::RandRange(1, 4));
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+		FString::Printf(TEXT("Test: Adding Weapon Type %d"), (int32)RandomType));
+
+	AddWeapon(RandomType);
+}
+
+void ASP_Character::DebugTryCombine()
+{
+	// 현재 가지고 있는 무기들 중 조합 가능한 것이 있는지 체크 후 실행
+	// 예: 첫 번째와 두 번째 무기를 강제로 조합 시도
+	if (OwnedWeapons.Num() >= 2)
+	{
+		EWeaponType TypeA = OwnedWeapons[0].WeaponType;
+		EWeaponType TypeB = OwnedWeapons[1].WeaponType;
+
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Test: Attempting Combine..."));
+		CombineWeapons(TypeA, TypeB);
 	}
 }

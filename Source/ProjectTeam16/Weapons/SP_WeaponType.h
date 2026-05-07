@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h" // 데이터 테이블 포함
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 #include "SP_WeaponType.generated.h" 
 
 // 1. 팀원의 무기 종류 Enum
@@ -29,7 +31,7 @@ struct FWeaponData
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EWeaponType WeaponType;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "3"))
     int32 EnhanceLevel; // 0 ~ 3
 
     FWeaponData() : WeaponType(EWeaponType::None), EnhanceLevel(0) {}
@@ -42,15 +44,31 @@ struct FGunStats : public FTableRowBase
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
     FString GunName = TEXT("Default");
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Damage = 10.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float Damage = 10.0f;    //데미지
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float FireRate = 0.2f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float FireRate = 0.2f;   //연사속도
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Range = 5000.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float Range = 5000.0f;   //사거리
+
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
+    UStaticMesh* WeaponMesh; // 무기 외형
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Effect")
+    class UNiagaraSystem* MuzzleFlash; // 총구 화염 이펙트
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Effect")
+    UNiagaraSystem* ImpactEffect; //타격 시 이펙트
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+    USoundBase* FireSound; // 발사 소리
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+    USoundBase* ImpactSound; // 타격시 사운드
 };
