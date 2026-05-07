@@ -27,6 +27,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	int32 ExpReward = 1;
 
+	float LastAttackTime;
+
 	FTimerHandle AttackTimerHandle;
 
 	bool bIsDead = false;
