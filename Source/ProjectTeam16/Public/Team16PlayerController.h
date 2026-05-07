@@ -31,6 +31,9 @@ public:
 	void UpdateHUDHealth(float CurrentHealth, float MaxHealth);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateHUDStamina(float CurrentStamina, float MaxStamina);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void UpdateHUDExperience(float CurrentExp, float MaxExp);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")

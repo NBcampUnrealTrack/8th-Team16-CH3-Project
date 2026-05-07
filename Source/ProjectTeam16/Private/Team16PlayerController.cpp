@@ -135,6 +135,14 @@ void ATeam16PlayerController::UpdateHUDHealth(float CurrentHealth, float MaxHeal
 	}
 }
 
+void ATeam16PlayerController::UpdateHUDStamina(float CurrentStamina, float MaxStamina)
+{
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->UpdateStamina(CurrentStamina, MaxStamina);
+	}
+}
+
 void ATeam16PlayerController::UpdateHUDExperience(float CurrentExp, float MaxExp)
 {
 	if (HUDWidgetInstance)

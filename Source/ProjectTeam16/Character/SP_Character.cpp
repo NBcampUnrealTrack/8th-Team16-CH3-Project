@@ -54,6 +54,7 @@ void ASP_Character::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
+	CurrentStamina = MaxStamina;
 	SyncHUDValues();
 
 	// 입력 매핑 컨텍스트 등록
@@ -89,6 +90,7 @@ void ASP_Character::SyncHUDValues()
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 	{
 		Team16PlayerController->UpdateHUDHealth(CurrentHealth, MaxHealth);
+		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
 		Team16PlayerController->UpdateHUDExperience(CurrentExp, MaxExp);
 		Team16PlayerController->UpdateHUDLevel(CurrentLevel);
 	}
@@ -253,5 +255,10 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	{
 		// 쉬는 중: 회복 (최대치까지)
 		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenRate * DeltaTime));
+	}
+
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
 	}
 }

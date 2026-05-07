@@ -27,6 +27,9 @@ public:
 	void UpdateHealth(float CurrentHealth, float MaxHealth);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateStamina(float CurrentStamina, float MaxStamina);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void UpdateExperience(float CurrentExp, float MaxExp);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
@@ -47,6 +50,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> HealthProgressBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> StaminaProgressBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> HpText;

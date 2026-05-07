@@ -63,6 +63,16 @@ void UInGameHUD::UpdateHealth(float CurrentHealth, float MaxHealth)
 	}
 }
 
+void UInGameHUD::UpdateStamina(float CurrentStamina, float MaxStamina)
+{
+	const float StaminaPercent = MaxStamina > 0.0f ? FMath::Clamp(CurrentStamina / MaxStamina, 0.0f, 1.0f) : 0.0f;
+
+	if (StaminaProgressBar)
+	{
+		StaminaProgressBar->SetPercent(StaminaPercent);
+	}
+}
+
 void UInGameHUD::UpdateExperience(float CurrentExp, float MaxExp)
 {
 	const float ExpPercent = MaxExp > 0.0f ? FMath::Clamp(CurrentExp / MaxExp, 0.0f, 1.0f) : 0.0f;
