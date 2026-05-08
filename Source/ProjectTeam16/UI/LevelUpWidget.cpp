@@ -1,8 +1,9 @@
-#include "ProjectTeam16/UI/LevelUpWidget.h"
+Ôªø#include "ProjectTeam16/UI/LevelUpWidget.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/Texture2D.h"
+#include "Team16PlayerController.h"
 
 void ULevelUpWidget::NativeConstruct()
 {
@@ -31,7 +32,7 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
     TArray<FUpgradeData> Pool;
     if (!PlayerChar) return Pool;
 
-    // Ω∫≈» ƒ´µÂ («◊ªÛ µÓ¿Â)
+    // Ïä§ÌÉØ Ïπ¥Îìú (Ìï≠ÏÉÅ Îì±Ïû•)
     auto MakeStatCard = [&](EUpgradeType Type, const FString& Path)
         {
             FUpgradeData Data;
@@ -47,7 +48,7 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
     MakeStatCard(EUpgradeType::AttackUp,
         TEXT("/Game/UI/InGameUI/png/ATKUP-Photoroom"));
 
-    // ∞≠»≠ ∞Ê∑Œ ∏ 
+    // Í∞ïÌôî Í≤ΩÎ°ú Îßµ
     TMap<EWeaponType, FString> EnhancePathMap;
     EnhancePathMap.Add(EWeaponType::Standard, TEXT("/Game/UI/InGameUI/png/1gunpuls-Photoroom"));
     EnhancePathMap.Add(EWeaponType::Old, TEXT("/Game/UI/InGameUI/png/2gunplus-Photoroom"));
@@ -57,18 +58,18 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
     EnhancePathMap.Add(EWeaponType::Improved, TEXT("/Game/UI/InGameUI/png/BetaGun-Photoroom"));
     EnhancePathMap.Add(EWeaponType::Special, TEXT("/Game/UI/InGameUI/png/Specialgun-Photoroom"));
 
-    // ªı π´±‚ ∞Ê∑Œ ∏ 
+    // ÏÉà Î¨¥Í∏∞ Í≤ΩÎ°ú Îßµ
     TMap<EWeaponType, FString> NewWeaponPathMap;
     NewWeaponPathMap.Add(EWeaponType::Old, TEXT("/Game/UI/InGameUI/png/2gun-Photoroom"));
     NewWeaponPathMap.Add(EWeaponType::Supply, TEXT("/Game/UI/InGameUI/png/3gun-Photoroom"));
     NewWeaponPathMap.Add(EWeaponType::Spare, TEXT("/Game/UI/InGameUI/png/4gun"));
 
-    // ¡∂«’ «ÿ±› ø©∫Œ
+    // Ï°∞Ìï© Ìï¥Í∏à Ïó¨Î∂Ä
     bool bHasImproved = PlayerChar->HasWeapon(EWeaponType::Improved);
     bool bHasEnhanced = PlayerChar->HasWeapon(EWeaponType::Enhanced);
     bool bHasSpecial = PlayerChar->HasWeapon(EWeaponType::Special);
 
-    // ∞≠»≠ ƒ´µÂ (º“¡ˆ ¡ﬂ + 3∞≠ πÃ∏∏)
+    // Í∞ïÌôî Ïπ¥Îìú (ÏÜåÏßÄ Ï§ë + 3Í∞ï ÎØ∏Îßå)
     TArray<EWeaponType> EnhanceOrder = {
         EWeaponType::Standard, EWeaponType::Old,
         EWeaponType::Supply,   EWeaponType::Spare,
@@ -90,8 +91,8 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
         UE_LOG(LogTemp, Warning, TEXT("Enhance Added: Type%d Level%d"), (int32)Type, Level);
     }
 
-    // ªı π´±‚ ƒ´µÂ
-    // ∞≥∑Æ«¸ OR ∆Øºˆ«¸ «ÿ±› Ω√ «•¡ÿ«¸+±∏«¸ ∞Ëø≠ ¡¶∞≈
+    // ÏÉà Î¨¥Í∏∞ Ïπ¥Îìú
+    // Í∞úÎüâÌòï OR ÌäπÏàòÌòï Ìï¥Í∏à Ïãú ÌëúÏ§ÄÌòï+Íµ¨Ìòï Í≥ÑÏó¥ Ï†úÍ±∞
     if (!bHasImproved && !bHasSpecial)
     {
         if (!PlayerChar->HasWeapon(EWeaponType::Old))
@@ -105,7 +106,7 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
         }
     }
 
-    // ∞≠»≠«¸ OR ∆Øºˆ«¸ «ÿ±› Ω√ ∫∏±ﬁ«¸+øπ∫ÒøÎ ∞Ëø≠ ¡¶∞≈
+    // Í∞ïÌôîÌòï OR ÌäπÏàòÌòï Ìï¥Í∏à Ïãú Î≥¥Í∏âÌòï+ÏòàÎπÑÏö© Í≥ÑÏó¥ Ï†úÍ±∞
     if (!bHasEnhanced && !bHasSpecial)
     {
         if (!PlayerChar->HasWeapon(EWeaponType::Supply))
@@ -128,7 +129,7 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
         }
     }
 
-    // ¡∂«’ ƒ´µÂ
+    // Ï°∞Ìï© Ïπ¥Îìú
     if (PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Standard) == 3 &&
         PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Old) == 3)
     {
@@ -180,21 +181,21 @@ void ULevelUpWidget::SetupRandomCards()
     TArray<FUpgradeData> Pool = BuildUpgradePool(PlayerChar);
     UE_LOG(LogTemp, Warning, TEXT("Pools : %d"), Pool.Num());
 
-    // «Æ º≈«√
+    // ÌíÄ ÏÖîÌîå
     for (int32 i = Pool.Num() - 1; i > 0; i--)
     {
         int32 j = FMath::RandRange(0, i);
         Pool.Swap(i, j);
     }
 
-    // 4∞≥ ªÃ±‚
+    // 4Í∞ú ÎΩëÍ∏∞
     CurrentUpgrades.Empty();
     for (int32 i = 0; i < 4 && i < Pool.Num(); i++)
     {
         CurrentUpgrades.Add(Pool[i]);
     }
 
-    // 4∞≥ πÃ∏∏¿Ã∏È ∫Û ƒ´µÂ «¡∑π¿”¿∏∑Œ √§øÏ±‚
+    // 4Í∞ú ÎØ∏ÎßåÏù¥Î©¥ Îπà Ïπ¥Îìú ÌîÑÎ†àÏûÑÏúºÎ°ú Ï±ÑÏö∞Í∏∞
     UTexture2D* EmptyCardTexture = Cast<UTexture2D>(
         StaticLoadObject(UTexture2D::StaticClass(), nullptr,
             TEXT("/Game/UI/InGameUI/png/CardFrame")));
@@ -255,7 +256,7 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
 
     FUpgradeData Selected = CurrentUpgrades[Index];
 
-    // ∫Û ƒ´µÂ ≈¨∏Ø Ω√ π´Ω√
+    // Îπà Ïπ¥Îìú ÌÅ¥Î¶≠ Ïãú Î¨¥Ïãú
     if (Selected.WeaponTarget == EWeaponType::None &&
         Selected.CardTexture &&
         Selected.CardTexture->GetName() == TEXT("CardFrame"))
@@ -282,6 +283,7 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
             break;
         case EUpgradeType::AttackUp:
             PlayerChar->AttackPower *= 1.1f;
+            UE_LOG(LogTemp, Log, TEXT("AttackPower Up: %f"), PlayerChar->AttackPower);
             break;
         case EUpgradeType::WeaponEnhance:
             PlayerChar->EnhanceWeapon(Selected.WeaponTarget);
@@ -298,9 +300,16 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
     if (PC)
     {
-        RemoveFromParent();
-        PC->SetPause(false);
-        PC->bShowMouseCursor = false;
-        PC->SetInputMode(FInputModeGameOnly());
+        if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
+        {
+            Team16PlayerController->CloseLevelUpUI();
+        }
+        else
+        {
+            RemoveFromParent();
+            PC->SetPause(false);
+            PC->bShowMouseCursor = false;
+            PC->SetInputMode(FInputModeGameOnly());
+        }
     }
 }

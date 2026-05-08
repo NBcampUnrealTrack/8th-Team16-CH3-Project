@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -50,6 +50,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowGameOver();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowLevelUpUI();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void CloseLevelUpUI();
+
 protected:
 	void StartGameTimer();
 	void StopGameTimer();
@@ -88,7 +94,7 @@ protected:
 
 	FTimerHandle GameTimerHandle;
 
-	// ·¹º§¾÷ UI (¿¡µğÅÍ¿¡¼­ ÁöÁ¤ °¡´É)
+	// ë ˆë²¨ì—… UI (ì—ë””í„°ì—ì„œ ì§€ì • ê°€ëŠ¥)
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<ULevelUpWidget> LevelUpWidgetClass;
 
@@ -101,3 +107,4 @@ private:
 
 	bool bIsLevelUpUIOpen = false;
 };
+

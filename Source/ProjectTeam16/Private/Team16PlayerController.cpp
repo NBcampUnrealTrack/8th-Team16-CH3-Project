@@ -1,7 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Team16PlayerController.h"
-
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -24,7 +23,7 @@ void ATeam16PlayerController::SetupInputComponent()
 
 	PauseAction->bTriggerWhenPaused = true;
 	EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ATeam16PlayerController::TogglePauseMenu);
-	// 레벨업 UI
+	
 	InputComponent->BindAction("OpenLevelUp", IE_Pressed,
 		this, &ATeam16PlayerController::OpenLevelUpUI);
 	InputComponent->BindAction("CheatMaxEnhance", IE_Pressed,
@@ -115,7 +114,7 @@ void ATeam16PlayerController::ShowInGameHUD()
 
 	HUDWidgetInstance->Show();
 
-	// HUD가 처음 표시될 때 플레이어가 가진 실제 체력/경험치/레벨 값을 반영합니다.
+	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
 	{
 		PlayerCharacter->SyncHUDValues();
@@ -179,8 +178,9 @@ void ATeam16PlayerController::RegisterZombieKill(int32 ExpReward)
 {
 	ZombieKillCount++;
 	UpdateHUDZombieKillCount(ZombieKillCount);
+	UE_LOG(LogTemp, Log, TEXT("Zombie kill registered. KillCount=%d ExpReward=%d"), ZombieKillCount, ExpReward);
 
-	// 좀비 처치 경험치는 플레이어 캐릭터가 보관하고 HUD까지 갱신합니다.
+	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
 	{
 		PlayerCharacter->AddExperience(ExpReward);
@@ -239,7 +239,7 @@ void ATeam16PlayerController::StartGameTimer()
 		return;
 	}
 
-	// HUD가 나타나는 순간부터 10분 카운트다운을 시작하고 TimeText에 표시합니다.
+	
 	GameTimerRemainingSeconds = FMath::Max(0, GameTimerStartSeconds);
 	UpdateHUDTime();
 
@@ -280,35 +280,62 @@ void ATeam16PlayerController::UpdateHUDTime()
 		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
 	}
 }
-// 레벨업 UI
+
 void ATeam16PlayerController::OpenLevelUpUI()
 {
-	if (!bIsLevelUpUIOpen)
+	if (bIsLevelUpUIOpen)
 	{
-		if (LevelUpWidgetClass)
-			LevelUpWidget = CreateWidget<ULevelUpWidget>(this, LevelUpWidgetClass);
-
-		if (!LevelUpWidget) return;
-
-		LevelUpWidget->SetupRandomCards();
-		LevelUpWidget->AddToViewport();
-		bIsLevelUpUIOpen = true;
-		SetPause(true);
-		bShowMouseCursor = true;
-		SetInputMode(FInputModeUIOnly());
+		CloseLevelUpUI();
+		return;
 	}
-	else
+
+	ShowLevelUpUI();
+}
+
+void ATeam16PlayerController::ShowLevelUpUI()
+{
+	if (bIsLevelUpUIOpen)
 	{
-		if (LevelUpWidget)
-		{
-			LevelUpWidget->RemoveFromParent();
-			LevelUpWidget = nullptr;
-		}
-		bIsLevelUpUIOpen = false;
-		SetPause(false);
-		bShowMouseCursor = false;
-		SetInputMode(FInputModeGameOnly());
+		return;
 	}
+
+	if (!LevelUpWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LevelUpWidgetClass is not set on Team16PlayerController."));
+		return;
+	}
+
+	LevelUpWidget = CreateWidget<ULevelUpWidget>(this, LevelUpWidgetClass);
+	if (!LevelUpWidget)
+	{
+		return;
+	}
+
+	LevelUpWidget->SetupRandomCards();
+	LevelUpWidget->AddToViewport();
+	bIsLevelUpUIOpen = true;
+
+	SetPause(true);
+	bShowMouseCursor = true;
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(LevelUpWidget->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
+}
+
+void ATeam16PlayerController::CloseLevelUpUI()
+{
+	if (LevelUpWidget)
+	{
+		LevelUpWidget->RemoveFromParent();
+		LevelUpWidget = nullptr;
+	}
+
+	bIsLevelUpUIOpen = false;
+	SetPause(false);
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
 }
 
 void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
@@ -346,3 +373,4 @@ void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
 
 	UE_LOG(LogTemp, Warning, TEXT("Cheat: All weapons max enhanced!"));
 }
+

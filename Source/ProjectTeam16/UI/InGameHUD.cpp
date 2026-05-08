@@ -97,6 +97,10 @@ void UInGameHUD::UpdateExperience(float CurrentExp, float MaxExp)
 	{
 		ExperienceProgressBar->SetPercent(ExpPercent);
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: ExperienceProgressBar is null. CurrentExp=%f MaxExp=%f Percent=%f"), CurrentExp, MaxExp, ExpPercent);
+	}
 }
 
 void UInGameHUD::UpdateLevel(int32 CurrentLevel)

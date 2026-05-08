@@ -27,7 +27,7 @@ protected:
 	float LastAttackTime;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
-	int32 ExpReward = 1;
+	int32 ExpReward = 10;
 
 	FTimerHandle AttackTimerHandle;
 

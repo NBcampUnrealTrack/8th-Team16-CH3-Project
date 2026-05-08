@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Perception/PawnSensingComponent.h"
 #include "Team16PlayerController.h"
+#include "GameFramework/Pawn.h"
 
 AZombie::AZombie()
 {
@@ -46,15 +47,32 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 
 	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
 	Health -= ActualDamage;
+	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
+
+	UE_LOG(LogTemp, Log, TEXT("Zombie hit. Damage=%f HP=%f/%f"), ActualDamage, Health, MaxHealth);
 
 	if (Health <= 0.0f)
 	{
 		bIsDead = true;
 
 		// 마지막 공격자가 플레이어라면 킬 카운트와 경험치 보상을 HUD에 반영합니다.
-		if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(EventInstigator))
+		ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(EventInstigator);
+		if (!PlayerController && DamageCauser)
+		{
+			if (APawn* OwnerPawn = Cast<APawn>(DamageCauser->GetOwner()))
+			{
+				PlayerController = Cast<ATeam16PlayerController>(OwnerPawn->GetController());
+			}
+		}
+
+		// 공격자 컨트롤러를 찾았을 때만 킬 카운트와 경험치를 지급합니다.
+		if (PlayerController)
 		{
 			PlayerController->RegisterZombieKill(ExpReward);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Zombie died but no player controller was found. ExpReward was not applied."));
 		}
 
 		Destroy();
