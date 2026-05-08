@@ -9,6 +9,8 @@
 #include "ProjectTeam16/Character/SP_Character.h"
 #include "ProjectTeam16/UI/GameOver.h"
 #include "ProjectTeam16/UI/InGameHUD.h"
+#include "ProjectTeam16/UI/LevelUpWidget.h"
+#include "ProjectTeam16/Weapons/SP_WeaponType.h"
 
 void ATeam16PlayerController::SetupInputComponent()
 {
@@ -22,6 +24,11 @@ void ATeam16PlayerController::SetupInputComponent()
 
 	PauseAction->bTriggerWhenPaused = true;
 	EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ATeam16PlayerController::TogglePauseMenu);
+	// 레벨업 UI
+	InputComponent->BindAction("OpenLevelUp", IE_Pressed,
+		this, &ATeam16PlayerController::OpenLevelUpUI);
+	InputComponent->BindAction("CheatMaxEnhance", IE_Pressed,
+		this, &ATeam16PlayerController::CheatMaxEnhanceAllWeapons);
 }
 
 void ATeam16PlayerController::TogglePauseMenu()
@@ -272,4 +279,70 @@ void ATeam16PlayerController::UpdateHUDTime()
 	{
 		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
 	}
+}
+// 레벨업 UI
+void ATeam16PlayerController::OpenLevelUpUI()
+{
+	if (!bIsLevelUpUIOpen)
+	{
+		if (LevelUpWidgetClass)
+			LevelUpWidget = CreateWidget<ULevelUpWidget>(this, LevelUpWidgetClass);
+
+		if (!LevelUpWidget) return;
+
+		LevelUpWidget->SetupRandomCards();
+		LevelUpWidget->AddToViewport();
+		bIsLevelUpUIOpen = true;
+		SetPause(true);
+		bShowMouseCursor = true;
+		SetInputMode(FInputModeUIOnly());
+	}
+	else
+	{
+		if (LevelUpWidget)
+		{
+			LevelUpWidget->RemoveFromParent();
+			LevelUpWidget = nullptr;
+		}
+		bIsLevelUpUIOpen = false;
+		SetPause(false);
+		bShowMouseCursor = false;
+		SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
+{
+	ASP_Character* PlayerChar = Cast<ASP_Character>(
+		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+	if (!PlayerChar) return;
+
+	TArray<EWeaponType> AllWeapons = {
+		EWeaponType::Standard, EWeaponType::Old,
+		EWeaponType::Supply,   EWeaponType::Spare,
+		EWeaponType::Enhanced, EWeaponType::Improved,
+		EWeaponType::Special
+	};
+
+	for (EWeaponType Type : AllWeapons)
+	{
+		if (!PlayerChar->HasWeapon(Type))
+		{
+			PlayerChar->OwnedWeapons.Add(FWeaponData(Type, 3));
+		}
+		else
+		{
+			for (FWeaponData& Weapon : PlayerChar->OwnedWeapons)
+			{
+				if (Weapon.WeaponType == Type)
+				{
+					Weapon.EnhanceLevel = 3;
+					break;
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Cheat: All weapons max enhanced!"));
 }

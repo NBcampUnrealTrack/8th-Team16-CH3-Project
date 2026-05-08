@@ -2,11 +2,13 @@
 #include "Team16PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProjectTeam16/Character/SP_Character.h"
 #include "GameFramework/PlayerController.h"
 
 ATeam16GameMode::ATeam16GameMode()
 {
     PlayerControllerClass = ATeam16PlayerController::StaticClass();
+    DefaultPawnClass = ASP_Character::StaticClass();
 }
 
 void ATeam16GameMode::BeginPlay()

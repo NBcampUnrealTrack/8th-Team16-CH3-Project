@@ -464,3 +464,25 @@ void ASP_Character::DebugTryCombine()
 		CombineWeapons(TypeA, TypeB);
 	}
 }
+
+void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
+{
+	for (FWeaponData& Weapon : OwnedWeapons)
+	{
+		if (Weapon.WeaponType == WeaponType)
+		{
+			if (Weapon.EnhanceLevel < 3)
+			{
+				Weapon.EnhanceLevel++;
+				UE_LOG(LogTemp, Warning, TEXT("%d weapon enhanced! Level: %d"),
+					(int32)WeaponType, Weapon.EnhanceLevel);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("%d weapon already max enhanced."),
+					(int32)WeaponType);
+			}
+			return;
+		}
+	}
+}

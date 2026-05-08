@@ -10,6 +10,7 @@ class UInputAction;
 class UGameOver;
 class UInGameHUD;
 class UUserWidget;
+class ULevelUpWidget;
 
 UCLASS()
 class PROJECTTEAM16_API ATeam16PlayerController : public APlayerController
@@ -86,4 +87,17 @@ protected:
 	int32 GameTimerRemainingSeconds = 600;
 
 	FTimerHandle GameTimerHandle;
+
+	// 레벨업 UI (에디터에서 지정 가능)
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<ULevelUpWidget> LevelUpWidgetClass;
+
+private:
+	void OpenLevelUpUI();
+	void CheatMaxEnhanceAllWeapons();
+
+	UPROPERTY()
+	ULevelUpWidget* LevelUpWidget;
+
+	bool bIsLevelUpUIOpen = false;
 };

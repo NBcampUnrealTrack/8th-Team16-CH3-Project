@@ -28,7 +28,38 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Level")
 	void AddExperience(int32 ExpAmount);
+	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
+	// pragma region status -> public 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float MaxHealth = 100.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	float CurrentHealth = 100.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
+	float AttackPower = 1.0f;
+	// 소지 무기 목록
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	TArray<FWeaponData> OwnedWeapons;
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void AddWeapon(EWeaponType WeaponType);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void CombineWeapons(EWeaponType TypeA, EWeaponType TypeB);
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void EnhanceWeapon(EWeaponType WeaponType);
+	bool HasWeapon(EWeaponType WeaponType) const
+	{
+		for (const FWeaponData& W : OwnedWeapons)
+			if (W.WeaponType == WeaponType) return true;
+		return false;
+	}
+
+	int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const
+	{
+		for (const FWeaponData& W : OwnedWeapons)
+			if (W.WeaponType == WeaponType) return W.EnhanceLevel;
+		return -1;
+	}
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
@@ -62,12 +93,7 @@ protected:
 #pragma endregion
 
 #pragma region status
-	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
-	float MaxHealth = 100.0f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Health")
-	float CurrentHealth = 100.0f;
 
 	bool bIsDead = false;
 
@@ -89,10 +115,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<class ASP_WeaponBase> WeaponClass;
 
-	// 팀원 시스템: 소지 무기 데이터 목록
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	TArray<FWeaponData> OwnedWeapons;
-
 	// 스폰되어 관리되는 무기 액터들
 	UPROPERTY()
 	TArray<class ASP_WeaponBase*> EquippedWeapons;
@@ -100,14 +122,6 @@ protected:
 	// 기존 TMap 대신 UDataTable 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	class UDataTable* GunDataTable;
-
-	// 무기 추가 (팀원 로직 통합)
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void AddWeapon(EWeaponType WeaponType);
-
-	// 무기 조합 (팀원 로직 통합)
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void CombineWeapons(EWeaponType TypeA, EWeaponType TypeB);
 
 	// 무기 비주얼/스탯 업데이트 (강화 시 호출)
 	void UpdateWeaponVisuals(int32 Index);
