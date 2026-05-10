@@ -26,10 +26,13 @@ protected:
 
 	float LastAttackTime;
 
+	bool bIsAggroed = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	int32 ExpReward = 10;
 
 	FTimerHandle AttackTimerHandle;
+	FTimerHandle SeeTimerHandle;
 
 	bool bIsDead = false;
 
@@ -76,7 +79,8 @@ protected:
 
 	// 실제 공격 루프
 	void AttackLoop();
-
+	//플레이어 감지 함수
+	void CheckVisibility();
 	
 
 
