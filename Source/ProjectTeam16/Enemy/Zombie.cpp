@@ -9,17 +9,23 @@
 #include "GameFramework\CharacterMovementComponent.h"
 #include "Components\CapsuleComponent.h"
 #include "SpawnVolume.h"
+#include "ProjectTeam16/UI/BossHealthBarWidget.h"
+#include "Components/WidgetComponent.h"
+#include "ProjectTeam16/Data/ProjectDataStructs.h"
 
 AZombie::AZombie()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
-	// 1. 컴포넌트들을 먼저 생성합니다 
+	
 	PawnSensing = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSensing"));
 	AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
 	AttackRangeSphere->SetupAttachment(RootComponent);
 
-	// 2. 그 다음 최적화 설정을 적용합니다
+	//HealthBarWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
+	//HealthBarWidgetComp->SetupAttachment(RootComponent);
+	//HealthBarWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 100.f)); // 머리 위 위치
+	//HealthBarWidgetComp->SetWidgetSpace(EWidgetSpace::Screen); // 화면에 2D로 표시
+
 	UCapsuleComponent* Capsule = GetCapsuleComponent();
 	if (Capsule)
 	{
@@ -41,7 +47,7 @@ AZombie::AZombie()
 		PawnSensing->SensingInterval = 2.0f;
 	}
 
-	// 3. 공격 범위 설정 (이 구체는 플레이어를 감지해야 하므로 오버랩 유지)
+	// 공격 범위 설정 (이 구체는 플레이어를 감지해야 하므로 오버랩 유지)
 	AttackRangeSphere->SetSphereRadius(150.0f);
 	AttackRangeSphere->SetGenerateOverlapEvents(true);
 	// 좀비끼리 무시해도 이 구체는 플레이어(Pawn)를 감지하도록 설정되어야 함
@@ -49,13 +55,39 @@ AZombie::AZombie()
 	AttackRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlapBegin);
 	AttackRangeSphere->OnComponentEndOverlap.AddDynamic(this, &AZombie::OnAttackOverlapEnd);
 
-	MaxHealth = 100.0f;
-	Health = MaxHealth;
 }
+
 
 void AZombie::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (ZombieStatTable) 
+	{
+		FZombieStatData* StatData = ZombieStatTable->FindRow<FZombieStatData>(StatRowName, TEXT(""));
+
+		if (StatData)
+		{
+			MaxHealth = StatData->MaxHealth;
+			Health = MaxHealth;
+			DamageAmount = StatData->Damage;
+			ExpAmount = StatData->ExpReward; 
+
+			if (GetCharacterMovement())
+			{
+				GetCharacterMovement()->MaxWalkSpeed = StatData->MoveSpeed;
+			}
+		}
+	}
+
+	//if (ActorHasTag(FName("Boss")))
+	//{
+	//	SetupBossUI();
+	//}
+	//else
+	//{
+	//	HealthBarWidgetComp->SetVisibility(false); // 일반 좀비는 숨김
+	//}
 
 	if (PawnSensing)
 	{
@@ -74,7 +106,10 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	Health -= ActualDamage;
 	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
 
-	UE_LOG(LogTemp, Log, TEXT("Zombie hit. Damage=%f HP=%f/%f"), ActualDamage, Health, MaxHealth);
+	//if (BossHealthBar)
+	//{
+	//	BossHealthBar->UpdateHealthBar(Health, MaxHealth);
+	//}
 
 	if (Health <= 0.0f)
 	{
@@ -101,13 +136,9 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 		// 공격자 컨트롤러를 찾았을 때만 킬 카운트와 경험치를 지급합니다.
 		if (PlayerController)
 		{
-			PlayerController->RegisterZombieKill(ExpReward);
+			PlayerController->RegisterZombieKill(ExpAmount);
 		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Zombie died but no player controller was found. ExpReward was not applied."));
-		}
-
+		
 		Destroy();
 	}
 
@@ -213,7 +244,48 @@ void AZombie::CheckVisibility()
 		OnSeePlayer(TargetPlayer);
 
 		GetWorldTimerManager().ClearTimer(SeeTimerHandle);
-
-		UE_LOG(LogTemp, Log, TEXT("Zombie Spotted by Camera! Angle: %f"), Angle);
 	}
 }
+
+//void AZombie::SetupBossUI()
+//{
+//	if (HealthBarWidgetComp)
+//	{
+//		// 위젯 컴포넌트에서 실제 위젯 객체를 가져와 캐스팅
+//		BossHealthBar = Cast<UBossHealthBarWidget>(HealthBarWidgetComp->GetWidget());
+//
+//		if (BossHealthBar)
+//		{
+//			BossHealthBar->SetBossName(TEXT("Titan Zombie")); // 이름 설정
+//			BossHealthBar->UpdateHealthBar(Health, MaxHealth); // 초기 체력 설정
+//		}
+//	}
+//}
+
+void AZombie::SetEnrageMode(bool bIsEnraged, float SpeedMultiplier)
+{
+	if (GetCharacterMovement())
+	{
+		if (bIsEnraged)
+		{
+			GetCharacterMovement()->MaxWalkSpeed *= SpeedMultiplier;
+		}
+		else
+		{
+			GetCharacterMovement()->MaxWalkSpeed /= SpeedMultiplier;
+		}
+	}
+
+	if (bIsEnraged)
+	{
+		// 시각적 피드백:메쉬 색을 붉게 바꾸거나 이펙트 부착
+	}
+	else
+	{
+		// 원래 색으로 복구
+	}
+}
+
+
+
+

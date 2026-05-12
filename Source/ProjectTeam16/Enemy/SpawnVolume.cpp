@@ -21,6 +21,7 @@ void ASpawnVolume::BeginPlay()
 
 	SpawnZombie();
 	
+	GetWorldTimerManager().SetTimer(EnrageStartTimerHandle, this, &ASpawnVolume::StartEnrage, StartEnrageTime, true);
 	//설정 간격마다 좀비 스폰
 	GetWorldTimerManager().SetTimer(SpawnTimerHandle, this, &ASpawnVolume::SpawnZombie, SpawnInterval, true);
 
@@ -33,7 +34,7 @@ FVector ASpawnVolume::GetRandomPointAroundPlayer()
 	FVector PlayerLocation = PlayerPawn->GetActorLocation();
 	FVector ForwardDir = PlayerPawn->GetActorForwardVector();
 
-	// 1. 기존 부채꼴 좌표 계산
+	// 기존 부채꼴 좌표 계산
 	float ConeHalfAngle = 75.0f;
 	float RandomAngle = FMath::RandRange(-ConeHalfAngle, ConeHalfAngle);
 	FVector SpawnDir = ForwardDir.RotateAngleAxis(RandomAngle, FVector::UpVector);
@@ -41,7 +42,7 @@ FVector ASpawnVolume::GetRandomPointAroundPlayer()
 	float RandomDistance = FMath::RandRange(MinRadius, MaxRadius);
 	FVector RawLocation = PlayerLocation + (SpawnDir * RandomDistance);
 
-	// 2. [핵심] 해당 좌표가 NavMesh 위인지 검증 및 보정
+	// 해당 좌표가 NavMesh 위인지 검증 및 보정
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 	if (NavSys)
 	{
@@ -96,7 +97,7 @@ void ASpawnVolume::SpawnZombie()
 	CurrentTime = GetWorld()->GetTimeSeconds();
 
 	// 10분(600초)이 되면 일반 스폰 로직을 아예 실행하지 않음
-	if (CurrentTime >= 120.0f)// 일단 테스트 용으로 2분으로 설정
+	if (CurrentTime >= BossSpawnTime)
 	{
 		if (!bBossSpawned)
 		{
@@ -148,7 +149,16 @@ void ASpawnVolume::SpawnZombie()
 			if (!Location.IsZero())
 			{
 				AActor* Spawned = GetWorld()->SpawnActor<AZombie>(SelectedClass, Location, FRotator::ZeroRotator);
-				if (Spawned) CurrentZombieCount++; // 스폰 성공 시 카운트 증가
+				if (Spawned)
+				{
+					CurrentZombieCount++; // 스폰 성공 시 카운트 증가
+
+					AZombie* NewZombie = Cast<AZombie>(Spawned);
+					if (NewZombie && bIsEnraged) 
+					{
+						NewZombie->SetEnrageMode(true, EnrageSpeedMultiplier);
+					}
+				}
 			}
 		}
 	}
@@ -166,7 +176,16 @@ void ASpawnVolume::SpawnZombie()
 			if (!Location.IsZero())
 			{
 				AActor* Spawned = GetWorld()->SpawnActor<AZombie>(SelectedEliteClass, Location, FRotator::ZeroRotator);
-				if (Spawned) CurrentZombieCount++; // 스폰 성공 시 카운트 증가
+				if (Spawned)
+				{
+					CurrentZombieCount++; // 스폰 성공 시 카운트 증가
+					AZombie* NewZombie = Cast<AZombie>(Spawned);
+
+					if (NewZombie && bIsEnraged) 
+					{
+						NewZombie->SetEnrageMode(true, EnrageSpeedMultiplier);
+					}
+				}
 			}
 		}
 	}
@@ -187,7 +206,7 @@ void ASpawnVolume::SpawnBoss()
 	CurrentZombieCount = 0;
 
 	// 맵 중앙 좌표 설정 
-	FVector BossLocation = FVector(-9100.0f, -180.0f, 20.f);
+	FVector BossLocation = FVector(400.0f, -200.0f, 50.f);
 
 	// NavMesh 위인지 확인 후 소환
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
@@ -197,6 +216,46 @@ void ASpawnVolume::SpawnBoss()
 		if (NavSys->ProjectPointToNavigation(BossLocation, ProjectedLocation, FVector(1000.f, 1000.f, 1000.f)))
 		{
 			AZombie* Boss = GetWorld()->SpawnActor<AZombie>(BossClass, ProjectedLocation.Location, FRotator::ZeroRotator);
+		}
+	}
+}
+
+void ASpawnVolume::StartEnrage()
+{
+	bIsEnraged = true;
+
+	// 현재 맵에 스폰되어 있는 모든 좀비를 찾아서 강화
+	TArray<AActor*> FoundZombies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AZombie::StaticClass(), FoundZombies);
+
+	for (AActor* Actor : FoundZombies)
+	{
+		AZombie* Zombie = Cast<AZombie>(Actor);
+		if (Zombie)
+		{
+			// 좀비 클래스에 만들 강화 함수 호출
+			Zombie->SetEnrageMode(true, EnrageSpeedMultiplier);
+		}
+	}
+
+	// 15초 뒤에 종료 함수를 호출하는 일회성 타이머 설정
+	GetWorldTimerManager().SetTimer(EnrageDurationTimerHandle, this, &ASpawnVolume::EndEnrage, EnrageTime, false);
+}
+
+void ASpawnVolume::EndEnrage()
+{
+	bIsEnraged = false;
+	
+	// 모든 좀비를 다시 정상 상태로
+	TArray<AActor*> FoundZombies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AZombie::StaticClass(), FoundZombies);
+
+	for (AActor* Actor : FoundZombies)
+	{
+		AZombie* Zombie = Cast<AZombie>(Actor);
+		if (Zombie)
+		{
+			Zombie->SetEnrageMode(false, EnrageSpeedMultiplier);
 		}
 	}
 }

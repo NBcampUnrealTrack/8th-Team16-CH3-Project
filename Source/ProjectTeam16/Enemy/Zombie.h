@@ -5,6 +5,8 @@
 #include "Zombie.generated.h"
 
 class UPawnSensingComponent;
+class UBossHealthBarWidget;
+class UWidgetComponent;
 
 UCLASS()
 class PROJECTTEAM16_API AZombie : public ACharacter
@@ -16,20 +18,16 @@ public:
 	AZombie();
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HP")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	FName StatRowName;
+
 	float Health;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HP")
 	float MaxHealth;
-
-	UPROPERTY(EditAnywhere, Category = "Damage")
-	float DamageAmount = 5.0f;
-
+	float DamageAmount;
 	float LastAttackTime;
+	int32 ExpAmount;
 
 	bool bIsAggroed = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
-	int32 ExpReward = 10;
 
 	FTimerHandle AttackTimerHandle;
 	FTimerHandle SeeTimerHandle;
@@ -45,6 +43,14 @@ protected:
 	// 공격 범위를 감지할 충돌 구체
 	UPROPERTY(VisibleAnywhere, Category = "AI")
 	class USphereComponent* AttackRangeSphere;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	//UWidgetComponent* HealthBarWidgetComp;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	//UBossHealthBarWidget* BossHealthBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+	class UDataTable* ZombieStatTable;
 
 	virtual void BeginPlay() override;
 
@@ -82,6 +88,8 @@ protected:
 	//플레이어 감지 함수
 	void CheckVisibility();
 	
+	//void SetupBossUI();
 
-
+public:
+	void SetEnrageMode(bool bIsEnraged, float SpeedMultiplier);
 };

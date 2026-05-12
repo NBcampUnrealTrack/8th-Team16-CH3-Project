@@ -39,9 +39,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Spawning")
 	float SpawnInterval = 1.0f;
 	UPROPERTY(EditAnywhere, Category = "Spawning")
-	float MinRadius = 800.0f; //도넛 모양의 스폰범위에서 안쪽 원
+	float MinRadius = 800.0f; //스폰범위 최소거리
 	UPROPERTY(EditAnywhere, Category = "Spawning")
-	float MaxRadius = 1500.0f; //도넛 모양의 스폰범위에서 바깥쪽 원
+	float MaxRadius = 1500.0f; //스폰범위 최대거리
+	
 	//소수점 좀비 수 확인용
 	float SpawnRemainder = 0.0f;
 	float EliteRemainder = 0.0f;
@@ -56,6 +57,24 @@ protected:
 	void SpawnBoss();          // 보스 소환 함수
 
 	FTimerHandle SpawnTimerHandle;
+	FTimerHandle EnrageStartTimerHandle;
+	FTimerHandle EnrageDurationTimerHandle;
 
 	float CurrentTime;
+	UPROPERTY(EditAnywhere, Category="SpawningBoss")
+	float BossSpawnTime = 600.0f;
+
+public:
+	UPROPERTY(EditAnywhere, Category="Enrage")
+	float EnrageSpeedMultiplier = 1.5f; //광폭화 이동속도 수치
+
+	UPROPERTY(EditAnywhere, Category="Enrage")
+	float EnrageTime = 15.0f;
+	UPROPERTY(EditAnywhere, Category = "Enrage")
+	float StartEnrageTime = 60.0f;
+
+	bool bIsEnraged = false;
+
+	void StartEnrage();
+	void EndEnrage();
 };
