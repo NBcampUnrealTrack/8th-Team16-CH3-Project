@@ -206,7 +206,7 @@ void ASpawnVolume::SpawnBoss()
 	CurrentZombieCount = 0;
 
 	// 맵 중앙 좌표 설정 
-	FVector BossLocation = FVector(400.0f, -200.0f, 50.f);
+	FVector BossLocation = FVector(-3750.0f, 9070.0f, 150.f);
 
 	// NavMesh 위인지 확인 후 소환
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
