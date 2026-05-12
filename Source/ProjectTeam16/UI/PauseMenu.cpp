@@ -103,11 +103,7 @@ void UPauseMenu::OnRestartButtonClicked()
 
 	UGameplayStatics::SetGamePaused(World, false);
 
-	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-	if (!CurrentLevelName.IsEmpty())
-	{
-		UGameplayStatics::OpenLevel(World, FName(*CurrentLevelName), true, TEXT("SkipMainMenu"));
-	}
+	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("SkipMainMenu"));
 }
 
 void UPauseMenu::OnMainMenuButtonClicked()
@@ -122,7 +118,7 @@ void UPauseMenu::OnMainMenuButtonClicked()
 
 	UGameplayStatics::SetGamePaused(World, false);
 
-	UGameplayStatics::OpenLevel(World, FName(TEXT("MainLevel")), true, TEXT("ShowMainMenu"));
+	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("ShowMainMenu"));
 }
 
 void UPauseMenu::OnQuitButtonClicked()
