@@ -38,19 +38,20 @@ public:
     UPROPERTY(meta = (BindWidget))
     class UImage* CardImage4;
 
-    UFUNCTION(BlueprintCallable)
-    void SetupRandomCards();
+    //UFUNCTION(BlueprintCallable)
+    //void SetupRandomCards();
 
 private:
     UTexture2D* LoadCardTexture(const FString& TexturePath);
 
     TArray<FUpgradeData> CurrentUpgrades;
-    TArray<FUpgradeData> BuildUpgradePool(ASP_Character* PlayerChar);
+    //TArray<FUpgradeData> BuildUpgradePool(ASP_Character* PlayerChar);
     void ApplyCardData(int32 Index, const FUpgradeData& Data);
 
-    UFUNCTION() void OnCard1Clicked();
-    UFUNCTION() void OnCard2Clicked();
-    UFUNCTION() void OnCard3Clicked();
-    UFUNCTION() void OnCard4Clicked();
-    void OnCardSelected(int32 Index);
+    //UFUNCTION() void OnCard1Clicked();
+    //UFUNCTION() void OnCard2Clicked();
+    //UFUNCTION() void OnCard3Clicked();
+    //UFUNCTION() void OnCard4Clicked();
+    //void OnCardSelected(int32 Index);
+    
 };

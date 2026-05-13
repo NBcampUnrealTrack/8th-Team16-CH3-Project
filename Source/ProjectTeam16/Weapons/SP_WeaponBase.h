@@ -23,10 +23,14 @@ public:
     // 메쉬를 동적으로 바꾸기 위한 함수
     void SetWeaponVisuals(UStaticMesh* NewMesh);
 
+    void SetSpecialAbility(EWeaponSpecialAbility Ability) { MyAbility = Ability; }
+
 protected:
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* WeaponMesh;
 
     UPROPERTY(BlueprintReadOnly)
     FGunStats CurrentStats;
+
+    EWeaponSpecialAbility MyAbility;
 };

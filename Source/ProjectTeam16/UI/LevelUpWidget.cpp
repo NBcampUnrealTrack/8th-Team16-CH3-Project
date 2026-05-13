@@ -9,10 +9,10 @@ void ULevelUpWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    if (CardButton1) CardButton1->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard1Clicked);
-    if (CardButton2) CardButton2->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard2Clicked);
-    if (CardButton3) CardButton3->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard3Clicked);
-    if (CardButton4) CardButton4->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard4Clicked);
+    //if (CardButton1) CardButton1->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard1Clicked);
+    //if (CardButton2) CardButton2->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard2Clicked);
+    //if (CardButton3) CardButton3->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard3Clicked);
+    //if (CardButton4) CardButton4->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard4Clicked);
 }
 
 UTexture2D* ULevelUpWidget::LoadCardTexture(const FString& TexturePath)
@@ -26,7 +26,7 @@ UTexture2D* ULevelUpWidget::LoadCardTexture(const FString& TexturePath)
     }
     return Texture;
 }
-
+/*
 TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
 {
     TArray<FUpgradeData> Pool;
@@ -165,8 +165,8 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
     }
 
     return Pool;
-}
-
+}*/
+/*
 void ULevelUpWidget::SetupRandomCards()
 {
     ASP_Character* PlayerChar = Cast<ASP_Character>(
@@ -213,7 +213,7 @@ void ULevelUpWidget::SetupRandomCards()
     {
         ApplyCardData(i, CurrentUpgrades[i]);
     }
-}
+}*/
 
 void ULevelUpWidget::ApplyCardData(int32 Index, const FUpgradeData& Data)
 {
@@ -245,11 +245,11 @@ void ULevelUpWidget::ApplyCardData(int32 Index, const FUpgradeData& Data)
     }
 }
 
-void ULevelUpWidget::OnCard1Clicked() { OnCardSelected(0); }
-void ULevelUpWidget::OnCard2Clicked() { OnCardSelected(1); }
-void ULevelUpWidget::OnCard3Clicked() { OnCardSelected(2); }
-void ULevelUpWidget::OnCard4Clicked() { OnCardSelected(3); }
-
+//void ULevelUpWidget::OnCard1Clicked() { OnCardSelected(0); }
+//void ULevelUpWidget::OnCard2Clicked() { OnCardSelected(1); }
+//void ULevelUpWidget::OnCard3Clicked() { OnCardSelected(2); }
+//void ULevelUpWidget::OnCard4Clicked() { OnCardSelected(3); }
+/*
 void ULevelUpWidget::OnCardSelected(int32 Index)
 {
     if (!CurrentUpgrades.IsValidIndex(Index)) return;
@@ -313,3 +313,4 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
         }
     }
 }
+*/

@@ -24,10 +24,10 @@ void ATeam16PlayerController::SetupInputComponent()
 	PauseAction->bTriggerWhenPaused = true;
 	EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ATeam16PlayerController::TogglePauseMenu);
 	
-	InputComponent->BindAction("OpenLevelUp", IE_Pressed,
+	/*InputComponent->BindAction("OpenLevelUp", IE_Pressed,
 		this, &ATeam16PlayerController::OpenLevelUpUI);
 	InputComponent->BindAction("CheatMaxEnhance", IE_Pressed,
-		this, &ATeam16PlayerController::CheatMaxEnhanceAllWeapons);
+		this, &ATeam16PlayerController::CheatMaxEnhanceAllWeapons);*/
 }
 
 void ATeam16PlayerController::TogglePauseMenu()
@@ -183,7 +183,7 @@ void ATeam16PlayerController::RegisterZombieKill(int32 ExpReward)
 	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
 	{
-		PlayerCharacter->AddExperience(ExpReward);
+		//PlayerCharacter->AddExperience(ExpReward);
 	}
 }
 
@@ -280,7 +280,7 @@ void ATeam16PlayerController::UpdateHUDTime()
 		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
 	}
 }
-
+/*
 void ATeam16PlayerController::OpenLevelUpUI()
 {
 	if (bIsLevelUpUIOpen)
@@ -373,4 +373,4 @@ void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
 
 	UE_LOG(LogTemp, Warning, TEXT("Cheat: All weapons max enhanced!"));
 }
-
+*/

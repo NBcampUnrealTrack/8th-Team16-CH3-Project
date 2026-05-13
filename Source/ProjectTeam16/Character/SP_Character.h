@@ -1,4 +1,4 @@
-//SP_Character.h // 최종
+//SP_Character.h 
 
 #pragma once
 
@@ -26,8 +26,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SyncHUDValues();
 
-	UFUNCTION(BlueprintCallable, Category = "Level")
-	void AddExperience(int32 ExpAmount);
+	//UFUNCTION(BlueprintCallable, Category = "Level")
+	//void AddExperience(int32 ExpAmount);
 	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
 	// pragma region status -> public 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
@@ -36,30 +36,21 @@ public:
 	float CurrentHealth = 100.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
 	float AttackPower = 1.0f;
-	// 소지 무기 목록
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	TArray<FWeaponData> OwnedWeapons;
 
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void AddWeapon(EWeaponType WeaponType);
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void CombineWeapons(EWeaponType TypeA, EWeaponType TypeB);
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void EnhanceWeapon(EWeaponType WeaponType);
-	bool HasWeapon(EWeaponType WeaponType) const
-	{
-		for (const FWeaponData& W : OwnedWeapons)
-			if (W.WeaponType == WeaponType) return true;
-		return false;
-	}
-
-	int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const
+	/*int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const
 	{
 		for (const FWeaponData& W : OwnedWeapons)
 			if (W.WeaponType == WeaponType) return W.EnhanceLevel;
 		return -1;
-	}
+	}*/
+
+
+	// bIsRightHand가 true면 오른손 무기, false면 왼손 무기를 NewType으로 업그레이드합니다.
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
+
+	// 아이템이 호출할 무기 능력 실시간 갱신 함수
+	void ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand);
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
@@ -72,24 +63,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	class UCameraComponent* FPSCamera;
 
-	// 총기들이 붙을 부모 컴포넌트
+	//양손 무기 고정 부착을 위한 개별 기준점
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	USceneComponent* WeaponRoot;
+	USceneComponent* LeftHandWeaponRoot;
 
-#pragma endregion
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	USceneComponent* RightHandWeaponRoot;
 
-#pragma region Test 
-protected:
-	// 테스트용 입력 액션 (입력 시스템에 등록 후 사용)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Test")
-	class UInputAction* TestAddWeaponAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Test")
-	class UInputAction* TestCombineAction;
-
-	// 테스트 실행 함수
-	void DebugAddRandomWeapon();
-	void DebugTryCombine();
 #pragma endregion
 
 #pragma region status
@@ -111,33 +91,37 @@ protected:
 
 #pragma region WeaponSystem
 
-	// 스폰할 무기 블루프린트 클래스
+protected:
+	// 스폰할 무기 블루프린트 클래스 원본
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<class ASP_WeaponBase> WeaponClass;
-
-	// 스폰되어 관리되는 무기 액터들
-	UPROPERTY()
-	TArray<class ASP_WeaponBase*> EquippedWeapons;
 
 	// 기존 TMap 대신 UDataTable 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	class UDataTable* GunDataTable;
 
-	// 무기 비주얼/스탯 업데이트 (강화 시 호출)
-	void UpdateWeaponVisuals(int32 Index);
-
-	// 무기 위치 재정렬
-	void RearrangeWeapons();
-
-	// 자동 사격 로직
-	void AutoFire();
-
-	// 총기가 사격 방향으로 반동을 주는 연출용
+	// 총기가 사격 방향으로 반동을 주는 연출용 수치
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	float RecoilIntensity = 5.0f;
 
-	FTimerHandle FireTimerHandle;
+public:
+	//양손 무기 액터 포인터
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	class ASP_WeaponBase* LeftHandWeapon;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	class ASP_WeaponBase* RightHandWeapon;
+
+	//현재 왼손과 오른손에 들고 있는 무기의 상태 데이터
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	FWeaponData LeftWeaponData;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	FWeaponData RightWeaponData;
+
+private:
+	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
+	void SpawnOrUpdateHandWeapon(bool bIsRightHand);
 #pragma endregion	
 
 
@@ -146,6 +130,14 @@ protected:
 	// 맵핑
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputMappingContext* DefaultMappingContext;
+
+	//마우스 좌/우 클릭 독립 입력
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+	class UInputAction* LeftFireAction; // 마우스 왼쪽 클릭용
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+	class UInputAction* RightFireAction; // 마우스 오른쪽 클릭용
+
 
 	// 이동
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -193,6 +185,9 @@ protected:
 	void SprintStart();                        //달리기 시작
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
+
+	void FireLeftHand();
+	void FireRightHand();
 
 #pragma endregion
 };

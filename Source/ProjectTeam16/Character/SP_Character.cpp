@@ -1,4 +1,6 @@
 ﻿
+//SP_Character.cpp
+
 #include "ProjectTeam16/Character/SP_Character.h"
 #include "ProjectTeam16/Weapons/SP_WeaponBase.h"
 #include "Camera/CameraComponent.h"
@@ -20,17 +22,28 @@ ASP_Character::ASP_Character()
 	FPSCamera->SetupAttachment(GetRootComponent());
 	FPSCamera->bUsePawnControlRotation = true;
 
-	WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
-	WeaponRoot->SetupAttachment(FPSCamera);
+	// 왼손 무기 배치 기준점 생성 및 카메라에 첨부
+	LeftHandWeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("LeftHandWeaponRoot"));
+	LeftHandWeaponRoot->SetupAttachment(FPSCamera);
+	LeftHandWeaponRoot->SetRelativeLocation(FVector(45.0f, -25.0f, -25.0f)); // 카메라 기준 왼쪽 아래 전방
 
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; 
+	// 오른손 무기 배치 기준점 생성 및 카메라에 첨부
+	RightHandWeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RightHandWeaponRoot"));
+	RightHandWeaponRoot->SetupAttachment(FPSCamera);
+	RightHandWeaponRoot->SetRelativeLocation(FVector(45.0f, 25.0f, -25.0f)); // 카메라 기준 오른쪽 아래 전방
 
-	// 무기 스탯은 데이터 테이블에서 읽어와서 무기 생성/강화 때 적용합니다.
-	static ConstructorHelpers::FObjectFinder<UDataTable> DataTableAsset(TEXT("/Game/Data/DT_WeaponStats.DT_WeaponStats"));
-	if (DataTableAsset.Succeeded())
-	{
-		GunDataTable = DataTableAsset.Object;
-	}
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+
+	// 데이터 테이블 에셋 자동 로드
+	//static ConstructorHelpers::FObjectFinder<UDataTable> DataTableAsset(TEXT("/Game/Data/DT_WeaponStats.DT_WeaponStats"));
+	//if (DataTableAsset.Succeeded())
+	//{
+	//	GunDataTable = DataTableAsset.Object;
+	//}
+
+	// 초기 포인터 안전하게 초기화
+	LeftHandWeapon = nullptr;
+	RightHandWeapon = nullptr;
 
 }
 
@@ -51,20 +64,33 @@ void ASP_Character::BeginPlay()
 		}
 	}
 
-	// 기본 무기를 지급하고 첫 자동 발사 타이머를 시작합니다.
-	AddWeapon(EWeaponType::Standard);
+	// 게임 시작 시 기본 권총을 왼손 오른손에 샷건 각각 지급
+	LeftWeaponData = FWeaponData(EWeaponType::Standard);
+	RightWeaponData = FWeaponData(EWeaponType::BasicShotgun);
 
-	if (GunDataTable && OwnedWeapons.Num() > 0)
+	SpawnOrUpdateHandWeapon(false); // 왼손 스폰
+	SpawnOrUpdateHandWeapon(true);  // 오른손 스폰
+
+	SyncHUDValues();
+}
+
+void ASP_Character::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	HandleStamina(DeltaTime);
+
+	// 사격 반동으로 인해 뒤로 밀려난 액터 원래대로 돌리기 
+	if (LeftHandWeapon)
 	{
-		EWeaponType InitType = OwnedWeapons[0].WeaponType;
+		FVector CurrentLoc = LeftHandWeapon->GetRootComponent()->GetRelativeLocation();
+		LeftHandWeapon->SetActorRelativeLocation(FMath::VInterpTo(CurrentLoc, FVector::ZeroVector, DeltaTime, 15.0f));
+	}
 
-		FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)InitType);
-		FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("InitTimer"));
-
-		if (RowData)
-		{
-			GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, RowData->FireRate, true);
-		}
+	if (RightHandWeapon)
+	{
+		FVector CurrentLoc = RightHandWeapon->GetRootComponent()->GetRelativeLocation();
+		RightHandWeapon->SetActorRelativeLocation(FMath::VInterpTo(CurrentLoc, FVector::ZeroVector, DeltaTime, 15.0f));
 	}
 }
 
@@ -104,7 +130,7 @@ void ASP_Character::SyncHUDValues()
 		Team16PlayerController->UpdateHUDLevel(CurrentLevel);
 	}
 }
-
+/*
 void ASP_Character::AddExperience(int32 ExpAmount)
 {
 	if (ExpAmount <= 0)
@@ -135,213 +161,141 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 			Team16PlayerController->ShowLevelUpUI();
 		}
 	}
+}*/
+
+
+
+void ASP_Character::UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand)
+{
+
+	FWeaponData& TargetData = bIsRightHand ? RightWeaponData : LeftWeaponData;
+
+	//새로운 무기로 즉시 교체
+	TargetData.WeaponType = NewType;
+	TargetData.ActiveAbility = EWeaponSpecialAbility::None; // 임시 초기화 후 스폰 시 채움
+
+	UE_LOG(LogTemp, Log, TEXT("%s Hand Weapon Upgraded to Type: %d"), bIsRightHand ? TEXT("Right") : TEXT("Left"), (int32)NewType);
+
+	SpawnOrUpdateHandWeapon(bIsRightHand);
 }
 
-
-void ASP_Character::AddWeapon(EWeaponType WeaponType)
+void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 {
-	// 이미 가진 무기라면 새로 만들지 않고 강화 단계만 올립니다.
-	for (int32 i = 0; i < OwnedWeapons.Num(); i++)
+	USceneComponent* AttachRoot = bIsRightHand ? RightHandWeaponRoot : LeftHandWeaponRoot;
+	ASP_WeaponBase** TargetWeaponPtr = bIsRightHand ? &RightHandWeapon : &LeftHandWeapon;
+	FWeaponData& TargetData = bIsRightHand ? RightWeaponData : LeftWeaponData;
+
+	if (TargetData.WeaponType == EWeaponType::None) return;
+
+	if (*TargetWeaponPtr)
 	{
-		if (OwnedWeapons[i].WeaponType == WeaponType)
-		{
-			if (OwnedWeapons[i].EnhanceLevel < 3)
-			{
-				OwnedWeapons[i].EnhanceLevel++;
-				UpdateWeaponVisuals(i);
-			}
-			return;
-		}
+		(*TargetWeaponPtr)->Destroy();
+		*TargetWeaponPtr = nullptr;
 	}
 
-	OwnedWeapons.Add(FWeaponData(WeaponType, 0));
-
-	// 새 무기는 캐릭터를 Owner/Instigator로 지정해서 처치 보상과 공격력 보정이 연결되게 합니다.
 	if (WeaponClass)
 	{
-		ASP_WeaponBase* NewWeapon = GetWorld()->SpawnActor<ASP_WeaponBase>(WeaponClass);
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+
+		ASP_WeaponBase* NewWeapon = GetWorld()->SpawnActor<ASP_WeaponBase>(WeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 		if (NewWeapon)
 		{
-			NewWeapon->SetOwner(this);
-			NewWeapon->SetInstigator(this);
+			NewWeapon->AttachToComponent(AttachRoot, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			*TargetWeaponPtr = NewWeapon;
 
-			NewWeapon->AttachToComponent(WeaponRoot, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-			EquippedWeapons.Add(NewWeapon);
-
-			UpdateWeaponVisuals(EquippedWeapons.Num() - 1);
-			RearrangeWeapons();
-		}
-	}
-}
-
-void ASP_Character::CombineWeapons(EWeaponType TypeA, EWeaponType TypeB)
-{
-	// 조합에 사용한 무기는 장착 목록과 소지 목록에서 제거합니다.
-	for (int32 i = OwnedWeapons.Num() - 1; i >= 0; i--)
-	{
-		if (OwnedWeapons[i].WeaponType == TypeA || OwnedWeapons[i].WeaponType == TypeB)
-		{
-			if (EquippedWeapons.IsValidIndex(i))
+			if (GunDataTable)
 			{
-				EquippedWeapons[i]->Destroy();
-				EquippedWeapons.RemoveAt(i);
-			}
-			OwnedWeapons.RemoveAt(i);
-		}
-	}
+				FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)TargetData.WeaponType);
+				FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("HandWeaponUpdate"));
 
-	EWeaponType ResultType = EWeaponType::None;
+				if (RowData)
+				{
+					FGunStats UpdatedStats = *RowData;
 
-	if ((TypeA == EWeaponType::Standard && TypeB == EWeaponType::Old) ||
-		(TypeA == EWeaponType::Old && TypeB == EWeaponType::Standard))
-	{
-		ResultType = EWeaponType::Improved;
-	}
-	else if ((TypeA == EWeaponType::Supply && TypeB == EWeaponType::Spare) ||
-		(TypeA == EWeaponType::Spare && TypeB == EWeaponType::Supply))
-	{
-		ResultType = EWeaponType::Enhanced;
-	}
-	else if ((TypeA == EWeaponType::Enhanced && TypeB == EWeaponType::Improved) ||
-		(TypeA == EWeaponType::Improved && TypeB == EWeaponType::Enhanced))
-	{
-		ResultType = EWeaponType::Special;
-	}
+					// 무기 데이터에 테이블에 정의된 고유 특수 능력 할당
+					TargetData.ActiveAbility = RowData->DefaultSpecialAbility;
 
-	// 조합 결과 무기를 지급하고, 새 무기 기준으로 자동 발사 주기를 갱신합니다.
-	if (ResultType != EWeaponType::None)
-	{
-		AddWeapon(ResultType);
+					// [특수 능력 실시간 스탯 변조 연동]
+					if (TargetData.ActiveAbility == EWeaponSpecialAbility::DoubleDamage)
+					{
+						UpdatedStats.Damage *= 2.0f; // 대미지 대폭 증폭
+					}
+					else if (TargetData.ActiveAbility == EWeaponSpecialAbility::RapidFire)
+					{
+						UpdatedStats.FireRate *= 0.5f; // 딜레이를 절반으로 줄여 연사 속도 증가
+					}
+					else if (TargetData.ActiveAbility == EWeaponSpecialAbility::LongRange)
+					{
+						UpdatedStats.Range *= 1.8f; // 사거리 대폭 증가
+					}
 
-		if (GunDataTable)
-		{
-			FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)ResultType);
-			FName RowName = FName(*RowNameString);
+					NewWeapon->SetWeaponVisuals(UpdatedStats.WeaponMesh);
+					NewWeapon->SetWeaponStats(UpdatedStats);
 
-			static const FString ContextString(TEXT("CombineWeaponTimer"));
-			FGunStats* RowData = GunDataTable->FindRow<FGunStats>(RowName, ContextString);
-
-			if (RowData)
-			{
-				float NewInterval = RowData->FireRate;
-
-				GetWorldTimerManager().ClearTimer(FireTimerHandle);
-				GetWorldTimerManager().SetTimer(FireTimerHandle, this, &ASP_Character::AutoFire, NewInterval, true);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("ResultType [%s] exists but row missing in DT!"), *RowNameString);
+					// 무기 자체 액터에도 능력 상태 공유
+					NewWeapon->SetSpecialAbility(TargetData.ActiveAbility);
+				}
 			}
 		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("No valid combination for these weapons."));
-	}
 }
 
-void ASP_Character::UpdateWeaponVisuals(int32 Index)
+void ASP_Character::ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand)
 {
-	if (!EquippedWeapons.IsValidIndex(Index) || !OwnedWeapons.IsValidIndex(Index)) return;
-	if (!EquippedWeapons[Index]) return;
+	//손에 맞는 데이터 및 무기 액터 포인터 가져오기
+	FWeaponData& TargetData = bIsRightHand ? RightWeaponData : LeftWeaponData;
+	ASP_WeaponBase* TargetWeapon = bIsRightHand ? RightHandWeapon : LeftHandWeapon;
 
-	// 데이터 테이블 스탯에 강화 단계 보너스를 더해 실제 장착 무기에 적용합니다.
-	EWeaponType Type = OwnedWeapons[Index].WeaponType;
+	if (!TargetWeapon) return;
 
-	if (Type == EWeaponType::None) return;
+	//캐릭터 데이터의 현재 능력 상태 갱신
+	TargetData.ActiveAbility = NewAbility;
 
-	int32 Level = OwnedWeapons[Index].EnhanceLevel;
+	//현재 들고 있는 무기 액터에도 능력 플래그 공유
+	TargetWeapon->SetSpecialAbility(NewAbility);
 
-	FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)Type);
-	FName RowName = FName(*RowNameString);
-
-	static const FString ContextString(TEXT("WeaponUpdateContext"));
-	FGunStats* RowData = GunDataTable->FindRow<FGunStats>(RowName, ContextString);
-
-	if (RowData)
+	//특수 능력 획득에 따른 실시간 스탯 재계산 및 반영
+	// 기존에 테이블에서 로드해둔 무기의 기본 스탯 복사
+	if (GunDataTable)
 	{
-		FGunStats UpdatedStats = *RowData;
+		FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)TargetData.WeaponType);
+		FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("HandWeaponAbilityUpdate"));
 
-		UpdatedStats.Damage += (UpdatedStats.Damage * (Level * 0.2f));
-
-		EquippedWeapons[Index]->SetWeaponVisuals(UpdatedStats.WeaponMesh);
-
-		EquippedWeapons[Index]->SetWeaponStats(UpdatedStats);
-
-		UE_LOG(LogTemp, Log, TEXT("Weapon %s Updated: Level %d, Final Damage: %f"), *RowNameString, Level, UpdatedStats.Damage);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Row [%s] not found in GunDataTable!"), *RowNameString);
-	}
-
-
-}
-
-
-void ASP_Character::RearrangeWeapons()
-{
-	// 장착한 무기들을 카메라 앞쪽에 가운데 정렬로 배치합니다.
-	float SideOffset = 35.0f;
-	int32 TotalGuns = EquippedWeapons.Num();
-
-	for (int32 i = 0; i < TotalGuns; i++)
-	{
-		if (EquippedWeapons[i])
+		if (RowData)
 		{
-			float YPos = (i - (TotalGuns / 2.0f - 0.5f)) * SideOffset;
-			EquippedWeapons[i]->SetActorRelativeLocation(FVector(100.f, YPos, -30.f));
-		}
-	}
-}
+			FGunStats UpdatedStats = *RowData;
 
-void ASP_Character::AutoFire()
-{
-	// 현재 장착 중인 모든 무기를 카메라 전방으로 자동 발사합니다.
-	FVector ForwardVector = FPSCamera->GetForwardVector();
+			// 새로 획득한 아이템 능력에 따라 스탯 변조 연동
+			if (NewAbility == EWeaponSpecialAbility::DoubleDamage)
+			{
+				UpdatedStats.Damage *= 2.0f;
+			}
+			else if (NewAbility == EWeaponSpecialAbility::RapidFire)
+			{
+				UpdatedStats.FireRate *= 0.5f;
+			}
+			else if (NewAbility == EWeaponSpecialAbility::LongRange)
+			{
+				UpdatedStats.Range *= 1.8f;
+			}
 
-	for (ASP_WeaponBase* Weapon : EquippedWeapons)
-	{
-		if (Weapon)
-		{
-			FVector CurrentLoc = Weapon->GetRootComponent()->GetRelativeLocation();
-			Weapon->SetActorRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.f, 0.f));
-
-			Weapon->Fire(ForwardVector);
+			// 실시간 변조된 스탯을 현재 장착 중인 무기에 강제 주입
+			TargetWeapon->SetWeaponStats(UpdatedStats);
 		}
 	}
 
-
+	UE_LOG(LogTemp, Log, TEXT("%s 무기에 새로운 특수 능력(%d)이 주입되었습니다!"), bIsRightHand ? TEXT("오른손") : TEXT("왼손"), (int32)NewAbility);
 }
-
-void ASP_Character::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	HandleStamina(DeltaTime);
-
-	// 반동으로 밀린 무기를 원래 위치로 부드럽게 되돌립니다.
-	float SideOffset = 35.0f;
-	int32 TotalGuns = EquippedWeapons.Num();
-
-	for (int32 i = 0; i < TotalGuns; i++)
-	{
-		if (ASP_WeaponBase* Weapon = EquippedWeapons[i])
-		{
-			float YPos = (i - (TotalGuns / 2.0f - 0.5f)) * SideOffset;
-			FVector TargetOrigin = FVector(100.f, YPos, -30.f);
-
-			FVector CurrentLoc = Weapon->GetRootComponent()->GetRelativeLocation();
-			Weapon->SetActorRelativeLocation(FMath::VInterpTo(CurrentLoc, TargetOrigin, DeltaTime, 15.0f));
-		}
-	}
-}
-
 
 void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
+
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASP_Character::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASP_Character::Look);
 
@@ -351,10 +305,41 @@ void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ASP_Character::SprintStart);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASP_Character::SprintEnd);
 
-		EnhancedInputComponent->BindAction(TestAddWeaponAction, ETriggerEvent::Started, this, &ASP_Character::DebugAddRandomWeapon);
-		EnhancedInputComponent->BindAction(TestCombineAction, ETriggerEvent::Started, this, &ASP_Character::DebugTryCombine);
+		if (LeftFireAction)
+			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireLeftHand);
+
+		if (RightFireAction)
+			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireRightHand);
 
 	}
+}
+
+void ASP_Character::FireLeftHand()
+{
+	if (bIsDead || !LeftHandWeapon) return;
+
+	//무기 액터 자체의 상대 위치를 가져옵니다.
+	FVector CurrentLoc = LeftHandWeapon->GetRootComponent()->GetRelativeLocation();
+
+	// 원래 위치(CurrentLoc)에서 X축 뒤쪽으로 반동 수치만큼 밀어냅니다.
+	LeftHandWeapon->SetActorRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+
+	// 사격 명령 전달
+	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
+}
+
+void ASP_Character::FireRightHand()
+{
+	if (bIsDead || !RightHandWeapon) return;
+
+	//무기 액터 자체의 상대 위치를 가져옵니다.
+	FVector CurrentLoc = RightHandWeapon->GetRootComponent()->GetRelativeLocation();
+
+	// 원래 위치(CurrentLoc)에서 X축 뒤쪽으로 반동 수치만큼 밀어냅니다.
+	RightHandWeapon->SetActorRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+
+	// 사격 명령 전달
+	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
 }
 
 void ASP_Character::Move(const FInputActionValue& Value)
@@ -396,6 +381,8 @@ void ASP_Character::HandleStamina(float DeltaTime)
 {
 	// 달리는 중에는 스태미나를 소모하고, 아니면 회복한 뒤 HUD에 반영합니다.
 	bool bIsMoving = GetVelocity().SizeSquared() > 100.f;
+	float PreviousStamina = CurrentStamina;
+
 	if (bIsSprinting && bIsMoving)
 	{
 		CurrentStamina = FMath::Max(0.0f, CurrentStamina - (StaminaDrainRate * DeltaTime));
@@ -406,57 +393,20 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	{
 		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenRate * DeltaTime));
 
-		if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
+		//if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
 	}
 
-	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	//if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	//{
+	//	Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
+	//}
+
+	//값이 변경되었을 때만 HUD를 갱신하여 낭비되는 CPU 자원 절약
+	if (!FMath::IsNearlyEqual(PreviousStamina, CurrentStamina))
 	{
-		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
-	}
-}
-
-void ASP_Character::DebugAddRandomWeapon()
-{
-	EWeaponType RandomType = static_cast<EWeaponType>(FMath::RandRange(1, 4));
-
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-		FString::Printf(TEXT("Test: Adding Weapon Type %d"), (int32)RandomType));
-
-	AddWeapon(RandomType);
-}
-
-void ASP_Character::DebugTryCombine()
-{
-	if (OwnedWeapons.Num() >= 2)
-	{
-		EWeaponType TypeA = OwnedWeapons[0].WeaponType;
-		EWeaponType TypeB = OwnedWeapons[1].WeaponType;
-
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Test: Attempting Combine..."));
-		CombineWeapons(TypeA, TypeB);
-	}
-}
-
-void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
-{
-	for (int32 i = 0; i < OwnedWeapons.Num(); i++)
-	{
-		if (OwnedWeapons[i].WeaponType == WeaponType)
+		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 		{
-			if (OwnedWeapons[i].EnhanceLevel < 3)
-			{
-				OwnedWeapons[i].EnhanceLevel++;
-				UpdateWeaponVisuals(i);
-
-				UE_LOG(LogTemp, Warning, TEXT("%d weapon enhanced! Level: %d"),
-					(int32)WeaponType, OwnedWeapons[i].EnhanceLevel);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("%d weapon already max enhanced."),
-					(int32)WeaponType);
-			}
-			return;
+			Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
 		}
 	}
 }
