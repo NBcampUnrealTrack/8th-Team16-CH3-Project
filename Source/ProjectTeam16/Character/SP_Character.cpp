@@ -81,13 +81,13 @@ void ASP_Character::Tick(float DeltaTime)
 	HandleStamina(DeltaTime);
 
 	// 사격 반동으로 인해 뒤로 밀려난 액터 원래대로 돌리기 
-	if (LeftHandWeapon)
+	if (LeftHandWeapon && LeftHandWeapon->GetRootComponent())
 	{
 		FVector CurrentLoc = LeftHandWeapon->GetRootComponent()->GetRelativeLocation();
 		LeftHandWeapon->SetActorRelativeLocation(FMath::VInterpTo(CurrentLoc, FVector::ZeroVector, DeltaTime, 15.0f));
 	}
 
-	if (RightHandWeapon)
+	if (RightHandWeapon && RightHandWeapon->GetRootComponent())
 	{
 		FVector CurrentLoc = RightHandWeapon->GetRootComponent()->GetRelativeLocation();
 		RightHandWeapon->SetActorRelativeLocation(FMath::VInterpTo(CurrentLoc, FVector::ZeroVector, DeltaTime, 15.0f));
@@ -199,9 +199,14 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 		SpawnParams.Owner = this;
 		SpawnParams.Instigator = this;
 
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		ASP_WeaponBase* NewWeapon = GetWorld()->SpawnActor<ASP_WeaponBase>(WeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 		if (NewWeapon)
 		{
+
+			NewWeapon->MoveIgnoreActorAdd(this);
+			this->MoveIgnoreActorAdd(NewWeapon);
+
 			NewWeapon->AttachToComponent(AttachRoot, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 			*TargetWeaponPtr = NewWeapon;
 
@@ -318,11 +323,14 @@ void ASP_Character::FireLeftHand()
 {
 	if (bIsDead || !LeftHandWeapon) return;
 
-	//무기 액터 자체의 상대 위치를 가져옵니다.
-	FVector CurrentLoc = LeftHandWeapon->GetRootComponent()->GetRelativeLocation();
-
-	// 원래 위치(CurrentLoc)에서 X축 뒤쪽으로 반동 수치만큼 밀어냅니다.
-	LeftHandWeapon->SetActorRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+	//왼손 무기 로컬 상대 위치
+	USceneComponent* WeaponRootComp = LeftHandWeapon->GetRootComponent();
+	if (WeaponRootComp)
+	{
+		FVector CurrentLoc = WeaponRootComp->GetRelativeLocation();
+		// 로컬 X축(앞뒤) 방향으로만 반동을 주므로 안전합니다.
+		WeaponRootComp->SetRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+	}
 
 	// 사격 명령 전달
 	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
@@ -332,11 +340,13 @@ void ASP_Character::FireRightHand()
 {
 	if (bIsDead || !RightHandWeapon) return;
 
-	//무기 액터 자체의 상대 위치를 가져옵니다.
-	FVector CurrentLoc = RightHandWeapon->GetRootComponent()->GetRelativeLocation();
-
-	// 원래 위치(CurrentLoc)에서 X축 뒤쪽으로 반동 수치만큼 밀어냅니다.
-	RightHandWeapon->SetActorRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+	//오른손 무기 동일하게 컴포넌트 로컬 상대 위치 제어.
+	USceneComponent* WeaponRootComp = RightHandWeapon->GetRootComponent();
+	if (WeaponRootComp)
+	{
+		FVector CurrentLoc = WeaponRootComp->GetRelativeLocation();
+		WeaponRootComp->SetRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+	}
 
 	// 사격 명령 전달
 	RightHandWeapon->Fire(FPSCamera->GetForwardVector());

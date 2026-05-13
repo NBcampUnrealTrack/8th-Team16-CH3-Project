@@ -25,6 +25,15 @@ public:
 
     void SetSpecialAbility(EWeaponSpecialAbility Ability) { MyAbility = Ability; }
 
+    // Adds an actor to the list of actors to ignore during movement (collision).
+    void MoveIgnoreActorAdd(AActor* ActorToIgnore)
+    {
+        if (UPrimitiveComponent* PrimitiveRoot = Cast<UPrimitiveComponent>(GetRootComponent()))
+        {
+            PrimitiveRoot->MoveIgnoreActors.AddUnique(ActorToIgnore);
+        }
+    }
+
 protected:
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* WeaponMesh;

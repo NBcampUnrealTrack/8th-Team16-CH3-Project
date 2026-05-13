@@ -18,6 +18,9 @@ ASP_WeaponBase::ASP_WeaponBase()
     CurrentStats.Range = 5000.0f;
 
     WeaponMesh->SetMobility(EComponentMobility::Movable);
+
+    WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 }
 
 void ASP_WeaponBase::SetWeaponVisuals(UStaticMesh* NewMesh)

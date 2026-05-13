@@ -362,7 +362,7 @@ void ATeam16PlayerController::CloseLevelUpUI()
 	SetPause(false);
 	bShowMouseCursor = false;
 	SetInputMode(FInputModeGameOnly());
-}
+}*/
 
 void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
 {
@@ -370,7 +370,7 @@ void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
 	GameTimerRemainingSeconds = GameTimerStartSeconds;
 	UpdateHUDTime();
 }
-
+/*
 void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
 {
 	ASP_Character* PlayerChar = Cast<ASP_Character>(
