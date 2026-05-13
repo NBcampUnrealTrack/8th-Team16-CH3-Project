@@ -1,47 +1,60 @@
-// Source/ProjectTeam16/UI/BossHealthBarWidget.cpp
+#include "ProjectTeam16/UI/BossHealthBarWidget.h"
 
-#include "BossHealthBarWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 
+void UBossHealthBarWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	ResetBossHealth();
+	Hide();
+}
+
+void UBossHealthBarWidget::Show()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+void UBossHealthBarWidget::Hide()
+{
+	SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UBossHealthBarWidget::UpdateBossHealth(float CurrentHealth, float MaxHealth)
+{
+	const float BossHealthPercent = MaxHealth > 0.0f
+		? FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f)
+		: 0.0f;
+
+	if (BossHealthProgressBar)
+	{
+		BossHealthProgressBar->SetPercent(BossHealthPercent);
+	}
+
+	if (BossHealthText)
+	{
+		const int32 CurrentHealthValue = FMath::Max(0, FMath::RoundToInt(CurrentHealth));
+		const int32 MaxHealthValue = FMath::Max(0, FMath::RoundToInt(MaxHealth));
+		BossHealthText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), CurrentHealthValue, MaxHealthValue)));
+	}
+}
+
+void UBossHealthBarWidget::SetBossName(const FString& BossName)
+{
+	if (BossNameText)
+	{
+		BossNameText->SetText(FText::FromString(BossName));
+	}
+}
+
+void UBossHealthBarWidget::ResetBossHealth()
+{
+	UpdateBossHealth(0.0f, 1.0f);
+	SetBossName(TEXT("Boss"));
+}
+
 void UBossHealthBarWidget::UpdateHealthBar(float CurrentHealth, float MaxHealth)
 {
-    if (MaxHealth <= 0.0f) return;
-
-    if (HealthProgressBar)
-    {
-        float Percent = FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f);
-        HealthProgressBar->SetPercent(Percent);
-
-        // 체력 비율에 따라 색상 변경
-        FLinearColor BarColor;
-        if (Percent > 0.7f)
-            BarColor = FLinearColor(0.0f, 1.0f, 0.0f, 1.0f); // 초록
-        else if (Percent > 0.3f)
-            BarColor = FLinearColor(1.0f, 0.7f, 0.0f, 1.0f); // 노랑
-        else
-            BarColor = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f); // 빨강
-
-        HealthProgressBar->SetFillColorAndOpacity(BarColor);
-    }
-
-    if (HealthText)
-    {
-        FString HealthString = FString::Printf(
-            TEXT("%.0f / %.0f"), CurrentHealth, MaxHealth);
-        HealthText->SetText(FText::FromString(HealthString));
-    }
+	UpdateBossHealth(CurrentHealth, MaxHealth);
 }
-
-void UBossHealthBarWidget::SetBossName(const FString& Name)
-{
-    if (BossNameText)
-    {
-        BossNameText->SetText(FText::FromString(Name));
-    }
-}
-
-// 보스 캐릭터에서 호출하는 방법
-// HealthBarComponent->SetWidgetClass(WBP_BossHealthBar);
-// Cast<UBossHealthBarWidget>(HealthBarComponent->GetWidget())->UpdateHealthBar(CurrentHealth, MaxHealth);
-// Cast<UBossHealthBarWidget>(HealthBarComponent->GetWidget())->SetBossName(TEXT("Boss"));

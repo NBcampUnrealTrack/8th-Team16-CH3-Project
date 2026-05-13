@@ -113,6 +113,7 @@ void ATeam16PlayerController::ShowInGameHUD()
 	}
 
 	HUDWidgetInstance->Show();
+	HUDWidgetInstance->HideBossHealth();
 
 	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
@@ -171,6 +172,30 @@ void ATeam16PlayerController::UpdateHUDZombieKillCount(int32 KillCount)
 	if (HUDWidgetInstance)
 	{
 		HUDWidgetInstance->UpdateZombieKillCount(KillCount);
+	}
+}
+
+void ATeam16PlayerController::ShowHUDBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
+{
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->ShowBossHealth(BossName, CurrentHealth, MaxHealth);
+	}
+}
+
+void ATeam16PlayerController::UpdateHUDBossHealth(float CurrentHealth, float MaxHealth)
+{
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->UpdateBossHealth(CurrentHealth, MaxHealth);
+	}
+}
+
+void ATeam16PlayerController::HideHUDBossHealth()
+{
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->HideBossHealth();
 	}
 }
 
@@ -269,6 +294,7 @@ void ATeam16PlayerController::HandleGameTimerTick()
 		if (HUDWidgetInstance)
 		{
 			HUDWidgetInstance->HideTime();
+			HUDWidgetInstance->ShowBossHealth(TEXT("Titan Zombie"), 1000.0f, 1000.0f);
 		}
 	}
 }
@@ -336,6 +362,13 @@ void ATeam16PlayerController::CloseLevelUpUI()
 	SetPause(false);
 	bShowMouseCursor = false;
 	SetInputMode(FInputModeGameOnly());
+}
+
+void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
+{
+	GameTimerStartSeconds = FMath::Max(0, NewStartSeconds);
+	GameTimerRemainingSeconds = GameTimerStartSeconds;
+	UpdateHUDTime();
 }
 
 void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()

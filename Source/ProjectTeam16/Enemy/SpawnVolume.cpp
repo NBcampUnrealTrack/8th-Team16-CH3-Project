@@ -4,6 +4,7 @@
 #include "Components/BoxComponent.h"
 #include "ProjectTeam16/Enemy/Zombie.h"
 #include "NavigationSystem.h"
+#include "Team16PlayerController.h"
 
 ASpawnVolume::ASpawnVolume()
 {
@@ -216,6 +217,15 @@ void ASpawnVolume::SpawnBoss()
 		if (NavSys->ProjectPointToNavigation(BossLocation, ProjectedLocation, FVector(1000.f, 1000.f, 1000.f)))
 		{
 			AZombie* Boss = GetWorld()->SpawnActor<AZombie>(BossClass, ProjectedLocation.Location, FRotator::ZeroRotator);
+			if (Boss)
+			{
+				Boss->Tags.AddUnique(TEXT("Boss"));
+
+				if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+				{
+					PlayerController->ShowHUDBossHealth(TEXT("Titan Zombie"), Boss->GetCurrentHealth(), Boss->GetMaxHealth());
+				}
+			}
 		}
 	}
 }

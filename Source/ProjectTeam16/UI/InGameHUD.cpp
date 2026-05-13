@@ -40,6 +40,8 @@ void UInGameHUD::NativeConstruct()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: ExperienceProgressBar is not bound. Check widget name and Is Variable."));
 	}
+
+	HideBossHealth();
 }
 
 void UInGameHUD::Show()
@@ -137,5 +139,72 @@ void UInGameHUD::HideTime()
 	if (TimeText)
 	{
 		TimeText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UInGameHUD::ShowBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
+{
+	if (BossHealthProgressBar)
+	{
+		BossHealthProgressBar->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (BossHealthProgressBar_1)
+	{
+		BossHealthProgressBar_1->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (BossnameText)
+	{
+		BossnameText->SetVisibility(ESlateVisibility::Visible);
+		BossnameText->SetText(FText::FromString(BossName));
+	}
+
+	if (BossHealthText)
+	{
+		BossHealthText->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	UpdateBossHealth(CurrentHealth, MaxHealth);
+}
+
+void UInGameHUD::HideBossHealth()
+{
+	if (BossHealthProgressBar)
+	{
+		BossHealthProgressBar->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (BossHealthProgressBar_1)
+	{
+		BossHealthProgressBar_1->SetVisibility(ESlateVisibility::Collapsed);
+		BossHealthProgressBar_1->SetPercent(1.0f);
+	}
+
+	if (BossnameText)
+	{
+		BossnameText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (BossHealthText)
+	{
+		BossHealthText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UInGameHUD::UpdateBossHealth(float CurrentHealth, float MaxHealth)
+{
+	const float BossHealthPercent = MaxHealth > 0.0f ? FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f) : 0.0f;
+
+	if (BossHealthProgressBar_1)
+	{
+		BossHealthProgressBar_1->SetPercent(BossHealthPercent);
+	}
+
+	if (BossHealthText)
+	{
+		const int32 CurrentHealthValue = FMath::Max(0, FMath::RoundToInt(CurrentHealth));
+		const int32 MaxHealthValue = FMath::Max(0, FMath::RoundToInt(MaxHealth));
+		BossHealthText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), CurrentHealthValue, MaxHealthValue)));
 	}
 }

@@ -44,6 +44,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void UpdateHUDZombieKillCount(int32 KillCount);
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowHUDBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateHUDBossHealth(float CurrentHealth, float MaxHealth);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void HideHUDBossHealth();
+
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void RegisterZombieKill(int32 ExpReward);
 
@@ -55,6 +64,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void CloseLevelUpUI();
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Timer")
+	void SetGameTimerStartSeconds(int32 NewStartSeconds);
 
 protected:
 	void StartGameTimer();
@@ -86,7 +98,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")
 	int32 ZombieKillCount = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Timer", meta = (ClampMin = "0", UIMin = "0"))
 	int32 GameTimerStartSeconds = 600;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")

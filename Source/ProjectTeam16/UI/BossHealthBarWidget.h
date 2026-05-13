@@ -1,31 +1,46 @@
-// BossHealthBarWidget.h
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "BossHealthBarWidget.generated.h"
 
+class UProgressBar;
+class UTextBlock;
+
 UCLASS()
 class PROJECTTEAM16_API UBossHealthBarWidget : public UUserWidget
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Ã¼·Â¹Ù ¾÷µ¥ÀÌÆ® (º¸½º Ä³¸¯ÅÍ¿¡¼­ È£Ãâ)
-    UFUNCTION(BlueprintCallable)
-    void UpdateHealthBar(float CurrentHealth, float MaxHealth);
+	virtual void NativeConstruct() override;
 
-    // º¸½º ÀÌ¸§ ¼³Á¤
-    UFUNCTION(BlueprintCallable)
-    void SetBossName(const FString& Name);
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void Show();
 
-    UPROPERTY(meta = (BindWidget))
-    class UProgressBar* HealthProgressBar;
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void Hide();
 
-    UPROPERTY(meta = (BindWidget))
-    class UTextBlock* BossNameText;
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void UpdateBossHealth(float CurrentHealth, float MaxHealth);
 
-    UPROPERTY(meta = (BindWidget))
-    class UTextBlock* HealthText;
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void SetBossName(const FString& BossName);
+
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void ResetBossHealth();
+
+	// ê¸°ì¡´ í˜¸ì¶œë¶€ê°€ ìˆì–´ë„ ê¹¨ì§€ì§€ ì•Šê²Œ ë‚¨ê²¨ë‘” í˜¸í™˜ í•¨ìˆ˜ì…ë‹ˆë‹¤.
+	UFUNCTION(BlueprintCallable, Category = "Boss UI")
+	void UpdateHealthBar(float CurrentHealth, float MaxHealth);
+
+protected:
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> BossHealthProgressBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BossNameText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BossHealthText;
 };
