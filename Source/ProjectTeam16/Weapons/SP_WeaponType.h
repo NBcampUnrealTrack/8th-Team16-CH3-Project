@@ -86,9 +86,13 @@ struct FGunStats : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     float Range = 5000.0f;   //사거리
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    float WeaponSpread = 0.05f; // 기본 분산치 (샷건이 아니면 낮게 설정) 권총 0,01 기준 샷건0.2
+
     // 데이터 테이블에서 이 무기가 해금할 기본 특수 능력을 지정합니다.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     EWeaponSpecialAbility DefaultSpecialAbility = EWeaponSpecialAbility::None;
+
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
     UStaticMesh* WeaponMesh; // 무기 외형
@@ -108,4 +112,6 @@ struct FGunStats : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
     USoundBase* ImpactSound; // 타격시 사운드
+
+   
 };
