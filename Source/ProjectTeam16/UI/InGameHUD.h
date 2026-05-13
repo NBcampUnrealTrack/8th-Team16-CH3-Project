@@ -44,6 +44,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void HideTime();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void HideBossHealth();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateBossHealth(float CurrentHealth, float MaxHealth);
+
 protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> ExperienceProgressBar;
@@ -65,4 +74,16 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TimeText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> BossHealthProgressBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> BossHealthProgressBar_1;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BossnameText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BossHealthText;
 };

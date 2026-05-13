@@ -17,6 +17,9 @@ public:
 
 	AZombie();
 
+	float GetCurrentHealth() const { return Health; }
+	float GetMaxHealth() const { return MaxHealth; }
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	FName StatRowName;

@@ -110,6 +110,13 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	//{
 	//	BossHealthBar->UpdateHealthBar(Health, MaxHealth);
 	//}
+	if (ActorHasTag(TEXT("Boss")))
+	{
+		if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+		{
+			PlayerController->UpdateHUDBossHealth(Health, MaxHealth);
+		}
+	}
 
 	if (Health <= 0.0f)
 	{
