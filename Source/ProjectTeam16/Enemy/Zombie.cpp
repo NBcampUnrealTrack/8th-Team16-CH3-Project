@@ -21,11 +21,6 @@ AZombie::AZombie()
 	AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
 	AttackRangeSphere->SetupAttachment(RootComponent);
 
-	//HealthBarWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
-	//HealthBarWidgetComp->SetupAttachment(RootComponent);
-	//HealthBarWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 100.f)); // 머리 위 위치
-	//HealthBarWidgetComp->SetWidgetSpace(EWidgetSpace::Screen); // 화면에 2D로 표시
-
 	UCapsuleComponent* Capsule = GetCapsuleComponent();
 	if (Capsule)
 	{
@@ -80,15 +75,6 @@ void AZombie::BeginPlay()
 		}
 	}
 
-	//if (ActorHasTag(FName("Boss")))
-	//{
-	//	SetupBossUI();
-	//}
-	//else
-	//{
-	//	HealthBarWidgetComp->SetVisibility(false); // 일반 좀비는 숨김
-	//}
-
 	if (PawnSensing)
 	{
 		GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 1.0f, true);
@@ -105,18 +91,6 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
 	Health -= ActualDamage;
 	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
-
-	//if (BossHealthBar)
-	//{
-	//	BossHealthBar->UpdateHealthBar(Health, MaxHealth);
-	//}
-	if (ActorHasTag(TEXT("Boss")))
-	{
-		if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
-		{
-			PlayerController->UpdateHUDBossHealth(Health, MaxHealth);
-		}
-	}
 
 	if (Health <= 0.0f)
 	{
