@@ -8,6 +8,9 @@
 
 class UButton;
 class UImage;
+class UMaterialInterface;
+class UMediaPlayer;
+class UMediaSource;
 class UProgressBar;
 class UTextBlock;
 
@@ -17,7 +20,10 @@ class PROJECTTEAM16_API UMainMenu : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UMainMenu(const FObjectInitializer& ObjectInitializer);
+
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Show();
@@ -47,7 +53,15 @@ protected:
 	UFUNCTION()
 	void OnQuitButtonUnhovered();
 
+	UFUNCTION()
+	void HandleMainMenuVideoOpened(FString OpenedUrl);
+
+	UFUNCTION()
+	void HandleMainMenuVideoEndReached();
+
 	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
+	void StartMainMenuBackgroundVideo();
+	void StopMainMenuBackgroundVideo();
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> StartButton;
@@ -65,6 +79,9 @@ protected:
 	TObjectPtr<UImage> QuitButtonImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> BackgroundVideoImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TitleText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -78,4 +95,13 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
 	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMediaPlayer> MainMenuMediaPlayer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMediaSource> MainMenuMediaSource;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMaterialInterface> MainMenuVideoMaterial;
 };

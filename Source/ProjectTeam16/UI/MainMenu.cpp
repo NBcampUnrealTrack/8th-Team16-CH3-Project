@@ -7,6 +7,32 @@
 #include "GameFramework/PlayerController.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
+#include "Materials/MaterialInterface.h"
+#include "MediaPlayer.h"
+#include "MediaSource.h"
+#include "UObject/ConstructorHelpers.h"
+
+UMainMenu::UMainMenu(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	static ConstructorHelpers::FObjectFinder<UMediaPlayer> DefaultMediaPlayer(TEXT("/Game/UI/Videos/MP_MainMenu.MP_MainMenu"));
+	if (DefaultMediaPlayer.Succeeded())
+	{
+		MainMenuMediaPlayer = DefaultMediaPlayer.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMediaSource> DefaultMediaSource(TEXT("/Game/UI/Videos/MainMenu.MainMenu"));
+	if (DefaultMediaSource.Succeeded())
+	{
+		MainMenuMediaSource = DefaultMediaSource.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultVideoMaterial(TEXT("/Game/UI/Videos/M_MainMenuVideo_UI.M_MainMenuVideo_UI"));
+	if (DefaultVideoMaterial.Succeeded())
+	{
+		MainMenuVideoMaterial = DefaultVideoMaterial.Object;
+	}
+}
 
 void UMainMenu::NativeConstruct()
 {
@@ -33,16 +59,26 @@ void UMainMenu::NativeConstruct()
 
 	SetButtonImageHovered(StartButtonImage, false);
 	SetButtonImageHovered(QuitButtonImage, false);
+	StartMainMenuBackgroundVideo();
+}
+
+void UMainMenu::NativeDestruct()
+{
+	StopMainMenuBackgroundVideo();
+
+	Super::NativeDestruct();
 }
 
 void UMainMenu::Show()
 {
 	SetVisibility(ESlateVisibility::Visible);
+	StartMainMenuBackgroundVideo();
 }
 
 void UMainMenu::Hide()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
+	StopMainMenuBackgroundVideo();
 }
 
 void UMainMenu::OnStartButtonClicked()
@@ -95,6 +131,23 @@ void UMainMenu::OnQuitButtonUnhovered()
 	SetButtonImageHovered(QuitButtonImage, false);
 }
 
+void UMainMenu::HandleMainMenuVideoOpened(FString OpenedUrl)
+{
+	if (MainMenuMediaPlayer)
+	{
+		MainMenuMediaPlayer->Play();
+	}
+}
+
+void UMainMenu::HandleMainMenuVideoEndReached()
+{
+	if (MainMenuMediaPlayer)
+	{
+		MainMenuMediaPlayer->Rewind();
+		MainMenuMediaPlayer->Play();
+	}
+}
+
 void UMainMenu::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const
 {
 	if (!ButtonImage)
@@ -103,4 +156,38 @@ void UMainMenu::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) cons
 	}
 
 	ButtonImage->SetColorAndOpacity(bIsHovered ? ButtonImageHoveredTint : ButtonImageNormalTint);
+}
+
+void UMainMenu::StartMainMenuBackgroundVideo()
+{
+	if (BackgroundVideoImage && MainMenuVideoMaterial)
+	{
+		BackgroundVideoImage->SetBrushFromMaterial(MainMenuVideoMaterial);
+	}
+
+	if (!MainMenuMediaPlayer || !MainMenuMediaSource)
+	{
+		return;
+	}
+
+	MainMenuMediaPlayer->OnMediaOpened.AddUniqueDynamic(this, &UMainMenu::HandleMainMenuVideoOpened);
+	MainMenuMediaPlayer->OnEndReached.AddUniqueDynamic(this, &UMainMenu::HandleMainMenuVideoEndReached);
+	MainMenuMediaPlayer->SetLooping(true);
+
+	if (!MainMenuMediaPlayer->IsPlaying())
+	{
+		MainMenuMediaPlayer->OpenSource(MainMenuMediaSource);
+	}
+}
+
+void UMainMenu::StopMainMenuBackgroundVideo()
+{
+	if (!MainMenuMediaPlayer)
+	{
+		return;
+	}
+
+	MainMenuMediaPlayer->OnMediaOpened.RemoveDynamic(this, &UMainMenu::HandleMainMenuVideoOpened);
+	MainMenuMediaPlayer->OnEndReached.RemoveDynamic(this, &UMainMenu::HandleMainMenuVideoEndReached);
+	MainMenuMediaPlayer->Close();
 }
