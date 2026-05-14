@@ -7,6 +7,7 @@
 #include "MainMenu.generated.h"
 
 class UButton;
+class UImage;
 class UProgressBar;
 class UTextBlock;
 
@@ -29,10 +30,24 @@ protected:
 	void OnStartButtonClicked();
 
 	UFUNCTION()
+	void OnStartButtonHovered();
+
+	UFUNCTION()
+	void OnStartButtonUnhovered();
+
+	UFUNCTION()
 	void OnOptionsButtonClicked();
 
 	UFUNCTION()
 	void OnQuitButtonClicked();
+
+	UFUNCTION()
+	void OnQuitButtonHovered();
+
+	UFUNCTION()
+	void OnQuitButtonUnhovered();
+
+	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> StartButton;
@@ -44,6 +59,12 @@ protected:
 	TObjectPtr<UButton> QuitButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> StartButtonImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> QuitButtonImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TitleText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -51,4 +72,10 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> LoadingProgressBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageNormalTint = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 };

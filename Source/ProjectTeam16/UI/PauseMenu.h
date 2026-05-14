@@ -7,6 +7,7 @@
 #include "PauseMenu.generated.h"
 
 class UButton;
+class UImage;
 class UProgressBar;
 class UTextBlock;
 
@@ -30,13 +31,39 @@ protected:
 	void OnResumeButtonClicked();
 
 	UFUNCTION()
+	void OnResumeButtonHovered();
+
+	UFUNCTION()
+	void OnResumeButtonUnhovered();
+
+	UFUNCTION()
 	void OnRestartButtonClicked();
+
+	UFUNCTION()
+	void OnRestartButtonHovered();
+
+	UFUNCTION()
+	void OnRestartButtonUnhovered();
 
 	UFUNCTION()
 	void OnMainMenuButtonClicked();
 
 	UFUNCTION()
+	void OnMainMenuButtonHovered();
+
+	UFUNCTION()
+	void OnMainMenuButtonUnhovered();
+
+	UFUNCTION()
 	void OnQuitButtonClicked();
+
+	UFUNCTION()
+	void OnQuitButtonHovered();
+
+	UFUNCTION()
+	void OnQuitButtonUnhovered();
+
+	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> ResumeButton;
@@ -51,6 +78,18 @@ protected:
 	TObjectPtr<UButton> QuitButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> ResumeImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> RestartImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> MainMenuImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> QuitImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PauseTitleText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -58,4 +97,10 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> VolumeProgressBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageNormalTint = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 };
