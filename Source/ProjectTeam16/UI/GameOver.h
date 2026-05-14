@@ -7,6 +7,10 @@
 #include "GameOver.generated.h"
 
 class UButton;
+class UImage;
+class UMaterialInterface;
+class UMediaPlayer;
+class UMediaSource;
 class UProgressBar;
 class UTextBlock;
 
@@ -16,7 +20,10 @@ class PROJECTTEAM16_API UGameOver : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UGameOver(const FObjectInitializer& ObjectInitializer);
+
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Show();
@@ -32,10 +39,38 @@ protected:
 	void OnRetryButtonClicked();
 
 	UFUNCTION()
+	void OnRetryButtonHovered();
+
+	UFUNCTION()
+	void OnRetryButtonUnhovered();
+
+	UFUNCTION()
 	void OnMainMenuButtonClicked();
 
 	UFUNCTION()
+	void OnMainMenuButtonHovered();
+
+	UFUNCTION()
+	void OnMainMenuButtonUnhovered();
+
+	UFUNCTION()
 	void OnQuitGameButtonClicked();
+
+	UFUNCTION()
+	void OnQuitGameButtonHovered();
+
+	UFUNCTION()
+	void OnQuitGameButtonUnhovered();
+
+	UFUNCTION()
+	void HandleGameOverVideoOpened(FString OpenedUrl);
+
+	UFUNCTION()
+	void HandleGameOverVideoEndReached();
+
+	void StartGameOverBackgroundVideo();
+	void StopGameOverBackgroundVideo();
+	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> RetryButton;
@@ -47,6 +82,18 @@ protected:
 	TObjectPtr<UButton> QuitGameButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> GameOver;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> RetryButtonImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> MainMenuButtonImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> QuitGameButtonImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> GameOverText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -54,4 +101,19 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> RespawnProgressBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMediaPlayer> GameOverMediaPlayer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMediaSource> GameOverMediaSource;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMaterialInterface> GameOverVideoMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageNormalTint = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
+	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 };
