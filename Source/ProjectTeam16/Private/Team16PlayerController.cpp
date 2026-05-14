@@ -9,6 +9,7 @@
 #include "ProjectTeam16/UI/GameOver.h"
 #include "ProjectTeam16/UI/InGameHUD.h"
 #include "ProjectTeam16/UI/LevelUpWidget.h"
+#include "ProjectTeam16/Cube/OptionWidget.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
 
 void ATeam16PlayerController::SetupInputComponent()
@@ -28,6 +29,8 @@ void ATeam16PlayerController::SetupInputComponent()
 		this, &ATeam16PlayerController::OpenLevelUpUI);
 	InputComponent->BindAction("CheatMaxEnhance", IE_Pressed,
 		this, &ATeam16PlayerController::CheatMaxEnhanceAllWeapons);*/
+	InputComponent->BindAction("OpenOption", IE_Pressed,
+		this, &ATeam16PlayerController::OpenOptionUI);
 }
 
 void ATeam16PlayerController::TogglePauseMenu()
@@ -208,7 +211,9 @@ void ATeam16PlayerController::RegisterZombieKill(int32 ExpReward)
 	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
 	{
-		//PlayerCharacter->AddExperience(ExpReward);
+		PlayerCharacter->AddExperience(ExpReward);
+
+		PlayerCharacter->AddCube(1);
 	}
 }
 
@@ -407,3 +412,29 @@ void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()
 	UE_LOG(LogTemp, Warning, TEXT("Cheat: All weapons max enhanced!"));
 }
 */
+void ATeam16PlayerController::OpenOptionUI()
+{
+	if (OptionWidgetClass)
+	{
+		// 1. 위젯 생성 및 변수에 저장
+		if (!OptionWidgetInstance)
+		{
+			OptionWidgetInstance = CreateWidget<UOptionWidget>(this, OptionWidgetClass);
+		}
+
+		if (OptionWidgetInstance)
+		{
+			OptionWidgetInstance->AddToViewport();
+
+			// 2. 초기화 및 마우스 설정
+			OptionWidgetInstance->RefreshUI();
+			bIsOptionUIOpen = true;
+
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(OptionWidgetInstance->TakeWidget());
+			SetInputMode(InputMode);
+			bShowMouseCursor = true;
+			UGameplayStatics::SetGamePaused(GetWorld(), true);
+		}
+	}
+}
