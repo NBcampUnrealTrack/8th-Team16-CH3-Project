@@ -6,6 +6,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 
 void UMainMenu::NativeConstruct()
 {
@@ -14,6 +15,8 @@ void UMainMenu::NativeConstruct()
 	if (StartButton)
 	{
 		StartButton->OnClicked.AddUniqueDynamic(this, &UMainMenu::OnStartButtonClicked);
+		StartButton->OnHovered.AddUniqueDynamic(this, &UMainMenu::OnStartButtonHovered);
+		StartButton->OnUnhovered.AddUniqueDynamic(this, &UMainMenu::OnStartButtonUnhovered);
 	}
 
 	if (OptionsButton)
@@ -24,7 +27,12 @@ void UMainMenu::NativeConstruct()
 	if (QuitButton)
 	{
 		QuitButton->OnClicked.AddUniqueDynamic(this, &UMainMenu::OnQuitButtonClicked);
+		QuitButton->OnHovered.AddUniqueDynamic(this, &UMainMenu::OnQuitButtonHovered);
+		QuitButton->OnUnhovered.AddUniqueDynamic(this, &UMainMenu::OnQuitButtonUnhovered);
 	}
+
+	SetButtonImageHovered(StartButtonImage, false);
+	SetButtonImageHovered(QuitButtonImage, false);
 }
 
 void UMainMenu::Show()
@@ -58,6 +66,16 @@ void UMainMenu::OnStartButtonClicked()
 	}
 }
 
+void UMainMenu::OnStartButtonHovered()
+{
+	SetButtonImageHovered(StartButtonImage, true);
+}
+
+void UMainMenu::OnStartButtonUnhovered()
+{
+	SetButtonImageHovered(StartButtonImage, false);
+}
+
 void UMainMenu::OnOptionsButtonClicked()
 {
 }
@@ -65,4 +83,24 @@ void UMainMenu::OnOptionsButtonClicked()
 void UMainMenu::OnQuitButtonClicked()
 {
 	UKismetSystemLibrary::QuitGame(this, nullptr, EQuitPreference::Quit, true);
+}
+
+void UMainMenu::OnQuitButtonHovered()
+{
+	SetButtonImageHovered(QuitButtonImage, true);
+}
+
+void UMainMenu::OnQuitButtonUnhovered()
+{
+	SetButtonImageHovered(QuitButtonImage, false);
+}
+
+void UMainMenu::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const
+{
+	if (!ButtonImage)
+	{
+		return;
+	}
+
+	ButtonImage->SetColorAndOpacity(bIsHovered ? ButtonImageHoveredTint : ButtonImageNormalTint);
 }
