@@ -8,6 +8,7 @@
 
 class UProgressBar;
 class UTextBlock;
+class UWidget;
 
 UCLASS()
 class PROJECTTEAM16_API UInGameHUD : public UUserWidget
@@ -76,14 +77,23 @@ protected:
 	TObjectPtr<UTextBlock> TimeText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> BossHealthBox;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> BossHealthProgressBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> BossHealthProgressBar_1;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> BossHealthBlackbar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BossnameText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BossHealthText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BossHPText;
 };
