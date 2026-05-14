@@ -20,8 +20,6 @@ void ASpawnVolume::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SpawnZombie();
-	
 	GetWorldTimerManager().SetTimer(EnrageStartTimerHandle, this, &ASpawnVolume::StartEnrage, StartEnrageTime, true);
 	//설정 간격마다 좀비 스폰
 	GetWorldTimerManager().SetTimer(SpawnTimerHandle, this, &ASpawnVolume::SpawnZombie, SpawnInterval, true);
@@ -35,7 +33,7 @@ FVector ASpawnVolume::GetRandomPointAroundPlayer()
 	FVector PlayerLocation = PlayerPawn->GetActorLocation();
 	FVector ForwardDir = PlayerPawn->GetActorForwardVector();
 
-	// 기존 부채꼴 좌표 계산
+	// 부채꼴 좌표 계산
 	float ConeHalfAngle = 75.0f;
 	float RandomAngle = FMath::RandRange(-ConeHalfAngle, ConeHalfAngle);
 	FVector SpawnDir = ForwardDir.RotateAngleAxis(RandomAngle, FVector::UpVector);
@@ -110,40 +108,16 @@ void ASpawnVolume::SpawnZombie()
 	// 배열 방어 코드
 	if (ZombieClasses.Num() == 0 && EliteClasses.Num() == 0) return;
 
-	//마리수 제한 
-	if (CurrentZombieCount >= 100) return;
-
-	CurrentTime = GetWorld()->GetTimeSeconds();
-	int32 Elapsed30Secs = FMath::FloorToInt(CurrentTime / 30.0f);
-	int32 ElapsedMinutes = FMath::FloorToInt(CurrentTime / 60.0f);
-
-	int32 TotalWaveQuota = (Elapsed30Secs + 1) * 10;
-	float ExactSpawnsPerInterval = (float)TotalWaveQuota / (30.0f / SpawnInterval) + SpawnRemainder;
-
-	int32 SpawnsToExecute = FMath::FloorToInt(ExactSpawnsPerInterval);
-	SpawnRemainder = ExactSpawnsPerInterval - SpawnsToExecute;
-
-	if (SpawnsToExecute <= 0) return;
-
-	// 1. 이번에 소환해야 할 엘리트 지분(10%)을 계산해서 누적합니다.
-	float CurrentEliteQuota = (SpawnsToExecute * 0.1f) + EliteRemainder;
-
-	// 2. 누적된 값에서 소환 가능한 정수 마릿수를 뽑습니다. (예: 1.2마리면 1마리)
-	int32 EliteToSpawn = FMath::FloorToInt(CurrentEliteQuota);
-
-	// 3. 소환하고 남은 소수점은 다음을 위해 저장합니다. (예: 1.2에서 1 빼고 0.2 남김)
-	EliteRemainder = CurrentEliteQuota - EliteToSpawn;
-
-	// 4. 일반 좀비는 전체 소환량에서 엘리트를 뺀 만큼 소환합니다.
-	int32 NormalToSpawn = FMath::Max(0, SpawnsToExecute - EliteToSpawn);
-
-	// 일반 좀비 스폰
-	for (int32 i = 0; i < NormalToSpawn; i++)
+	if (CurrentZombieCount < MaxZombieCount)
 	{
-		// 마리수 제한 한 번 더 체크
-		if (CurrentZombieCount >= 100) break;
+		int32 ElapsedMinutes = FMath::FloorToInt(CurrentTime / 60.0f);
 
-		TSubclassOf<AZombie> SelectedClass = GetClassByWaveProbability(ElapsedMinutes, false);
+		TotalSpawnCount++;
+
+		// 엘리트 확률 계산 및 클래스 선택 
+		bool bSpawnElite = (TotalSpawnCount % 10 == 0);
+		TSubclassOf<AZombie> SelectedClass = GetClassByWaveProbability(ElapsedMinutes, bSpawnElite);
+
 		if (SelectedClass)
 		{
 			FVector Location = GetRandomPointAroundPlayer();
@@ -152,37 +126,10 @@ void ASpawnVolume::SpawnZombie()
 				AActor* Spawned = GetWorld()->SpawnActor<AZombie>(SelectedClass, Location, FRotator::ZeroRotator);
 				if (Spawned)
 				{
-					CurrentZombieCount++; // 스폰 성공 시 카운트 증가
+					CurrentZombieCount++;
 
 					AZombie* NewZombie = Cast<AZombie>(Spawned);
-					if (NewZombie && bIsEnraged) 
-					{
-						NewZombie->SetEnrageMode(true, EnrageSpeedMultiplier);
-					}
-				}
-			}
-		}
-	}
-
-	// 엘리트 좀비 스폰
-	for (int32 i = 0; i < EliteToSpawn; i++)
-	{
-		// 마리수 제한 한 번 더 체크
-		if (CurrentZombieCount >= 100) break;
-
-		TSubclassOf<AZombie> SelectedEliteClass = GetClassByWaveProbability(ElapsedMinutes, true);
-		if (SelectedEliteClass)
-		{
-			FVector Location = GetRandomPointAroundPlayer();
-			if (!Location.IsZero())
-			{
-				AActor* Spawned = GetWorld()->SpawnActor<AZombie>(SelectedEliteClass, Location, FRotator::ZeroRotator);
-				if (Spawned)
-				{
-					CurrentZombieCount++; // 스폰 성공 시 카운트 증가
-					AZombie* NewZombie = Cast<AZombie>(Spawned);
-
-					if (NewZombie && bIsEnraged) 
+					if (NewZombie && bIsEnraged)
 					{
 						NewZombie->SetEnrageMode(true, EnrageSpeedMultiplier);
 					}
@@ -191,6 +138,7 @@ void ASpawnVolume::SpawnZombie()
 		}
 	}
 }
+
 
 void ASpawnVolume::SpawnBoss()
 {
@@ -268,6 +216,12 @@ void ASpawnVolume::EndEnrage()
 			Zombie->SetEnrageMode(false, EnrageSpeedMultiplier);
 		}
 	}
+}
+
+void ASpawnVolume::OnZombieDestroyed()
+{
+	CurrentZombieCount = FMath::Max(0, CurrentZombieCount - 1);
+	SpawnZombie();
 }
 
 

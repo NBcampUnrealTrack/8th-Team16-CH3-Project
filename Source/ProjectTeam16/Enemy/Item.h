@@ -5,6 +5,7 @@
 #include "Item.generated.h"
 
 class USphereComponent;
+class USoundBase;
 
 UCLASS()
 class PROJECTTEAM16_API AItem : public AActor
@@ -27,6 +28,8 @@ protected:
 	TObjectPtr<USphereComponent> PickupRange; 
 	UPROPERTY(VisibleAnywhere, Category = "Settings")
 	TObjectPtr<UStaticMeshComponent> StaticMesh;
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	TObjectPtr<USoundBase> PickupSound;
 
 	bool bIsFollowingPlayer = false;
 	class AActor* TargetPlayer = nullptr;

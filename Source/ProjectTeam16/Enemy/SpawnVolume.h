@@ -19,6 +19,9 @@ public:
 	FVector GetRandomPointAroundPlayer();
 
 	int32 CurrentZombieCount = 0;
+	UPROPERTY(EditAnywhere, Category = "Spawning")
+	int32 MaxZombieCount = 30;
+	int32 TotalSpawnCount = 0;
 protected:
 	
 	virtual void BeginPlay() override;
@@ -42,10 +45,7 @@ protected:
 	float MinRadius = 800.0f; //스폰범위 최소거리
 	UPROPERTY(EditAnywhere, Category = "Spawning")
 	float MaxRadius = 1500.0f; //스폰범위 최대거리
-	
-	//소수점 좀비 수 확인용
-	float SpawnRemainder = 0.0f;
-	float EliteRemainder = 0.0f;
+
 
 	// 확률 기반 클래스 선택 함수
 	TSubclassOf<AZombie> GetClassByWaveProbability(int32 CurrentMinutes, bool bIsElite);
@@ -77,4 +77,5 @@ public:
 
 	void StartEnrage();
 	void EndEnrage();
+	void OnZombieDestroyed();
 };

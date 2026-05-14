@@ -101,7 +101,7 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 		ASpawnVolume* Spawner = Cast<ASpawnVolume>(FoundSpawner);
 		if (Spawner)
 		{
-			Spawner->CurrentZombieCount--;
+			Spawner->OnZombieDestroyed();
 		}
 
 		// 마지막 공격자가 플레이어라면 킬 카운트와 경험치 보상을 HUD에 반영합니다.
@@ -227,21 +227,6 @@ void AZombie::CheckVisibility()
 		GetWorldTimerManager().ClearTimer(SeeTimerHandle);
 	}
 }
-
-//void AZombie::SetupBossUI()
-//{
-//	if (HealthBarWidgetComp)
-//	{
-//		// 위젯 컴포넌트에서 실제 위젯 객체를 가져와 캐스팅
-//		BossHealthBar = Cast<UBossHealthBarWidget>(HealthBarWidgetComp->GetWidget());
-//
-//		if (BossHealthBar)
-//		{
-//			BossHealthBar->SetBossName(TEXT("Titan Zombie")); // 이름 설정
-//			BossHealthBar->UpdateHealthBar(Health, MaxHealth); // 초기 체력 설정
-//		}
-//	}
-//}
 
 void AZombie::SetEnrageMode(bool bIsEnraged, float SpeedMultiplier)
 {

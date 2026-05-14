@@ -2,6 +2,7 @@
 #include "Components\SphereComponent.h"
 #include "ProjectTeam16/Character/SP_Character.h"
 #include "ProjectTeam16/Data/ProjectDataStructs.h"
+#include "Kismet/GameplayStatics.h"
 
 AItem::AItem()
 {
@@ -53,11 +54,15 @@ void AItem::Tick(float DeltaTime)
                     UE_LOG(LogTemp, Warning, TEXT("Get Exp"));
                 };
             }
-            UE_LOG(LogTemp, Warning, TEXT("아이템 획득 성공!"));
+           
+            if (PickupSound)
+            {
+                UGameplayStatics::PlaySoundAtLocation(this, PickupSound, GetActorLocation());
+            }
+
             Destroy();
         }
     }
-
 }
 
 void AItem::OnOverlap(
