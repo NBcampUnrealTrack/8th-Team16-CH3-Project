@@ -11,6 +11,7 @@ class UGameOver;
 class UInGameHUD;
 class UUserWidget;
 class ULevelUpWidget;
+class UOptionWidget;
 
 UCLASS()
 class PROJECTTEAM16_API ATeam16PlayerController : public APlayerController
@@ -68,6 +69,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI|Timer")
 	void SetGameTimerStartSeconds(int32 NewStartSeconds);
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void OpenOptionUI();
 protected:
 	void StartGameTimer();
 	void StopGameTimer();
@@ -118,5 +121,19 @@ private:
 	ULevelUpWidget* LevelUpWidget;
 
 	bool bIsLevelUpUIOpen = false;
+
+	// 큐브 UI
+	UPROPERTY()
+	class UUserWidget* OptionWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<class UUserWidget> OptionWidgetClass;
+
+
+
+	bool bIsOptionUIOpen = false;
+public:
+	UPROPERTY()
+	TObjectPtr<UOptionWidget> OptionWidgetInstance;
 };
 

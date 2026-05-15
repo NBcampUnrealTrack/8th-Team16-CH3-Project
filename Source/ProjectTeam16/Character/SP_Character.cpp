@@ -12,6 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Team16PlayerController.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
+#include "ProjectTeam16/Cube/OptionWidget.h"
 
 ASP_Character::ASP_Character()
 {
@@ -130,7 +131,7 @@ void ASP_Character::SyncHUDValues()
 		Team16PlayerController->UpdateHUDLevel(CurrentLevel);
 	}
 }
-/*
+
 void ASP_Character::AddExperience(int32 ExpAmount)
 {
 	if (ExpAmount <= 0)
@@ -153,15 +154,15 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 	}
 
 	SyncHUDValues();
-
+	/*
 	if (bLeveledUp)
 	{
 		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 		{
 			Team16PlayerController->ShowLevelUpUI();
 		}
-	}
-}*/
+	*/
+}
 
 
 
@@ -421,3 +422,101 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	}
 }
 
+void ASP_Character::ResetCubeOptions()
+{
+	CubeAttackPowerBonus = 0.0f;
+	CubeFireRateBonus = 0.0f;
+	CubeRangeBonus = 0.0f;
+	CubeCritRate = 0.0f;
+	CubeCritDMG = 0.0f;
+	CubeEXPRate = 0.0f;
+	CubeBossDMG = 0.0f;
+	CubeSplashDMG = 0.0f;
+	CubeX2Chance = 0.0f;
+	CubeMoreCube = 0.0f;
+	bCubePenetration = false;
+}
+
+void ASP_Character::ApplyCubeOptions(const TArray<FOptionLine>& Options)
+{
+	// 1. 이전 옵션 초기화 (이 코드가 있어서 누적되지 않습니다)
+	ResetCubeOptions();
+
+	// 2. 새 옵션 적용
+	for (const FOptionLine& Option : Options)
+	{
+		switch (Option.OptionType)
+		{
+		case EOptionType::ATKUP:     CubeAttackPowerBonus += Option.Value; break;
+		case EOptionType::ATSUP:     CubeFireRateBonus += Option.Value; break;
+		case EOptionType::RangeUP:   CubeRangeBonus += Option.Value; break;
+		case EOptionType::PenUP:     bCubePenetration = true; break;
+		case EOptionType::CritRate:  CubeCritRate += Option.Value; break;
+		case EOptionType::CritDMG:   CubeCritDMG += Option.Value; break;
+		case EOptionType::EXPRate:   CubeEXPRate += Option.Value; break;
+		case EOptionType::BossDMG:   CubeBossDMG += Option.Value; break;
+		case EOptionType::SplashDMG: CubeSplashDMG += Option.Value; break;
+		case EOptionType::x2chance:  CubeX2Chance += Option.Value; break;
+		case EOptionType::MoreCube:  CubeMoreCube += Option.Value; break;
+		}
+	}
+
+	// 3. 캐릭터 기본 공격력 실시간 반영
+	AttackPower = 1.0f + (CubeAttackPowerBonus / 100.0f);
+
+	// 4. 무기 스탯 재적용 (FireRate, Range 반영)
+	auto ApplyWeaponBonus = [&](ASP_WeaponBase* Weapon, FWeaponData& WeaponData)
+		{
+			if (!Weapon || !GunDataTable) return;
+
+			FString RowName = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)WeaponData.WeaponType);
+			FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowName), TEXT("CubeOption"));
+
+			if (!RowData) return;
+
+			FGunStats UpdatedStats = *RowData;
+
+			// 기존 무기 고유 특수능력 효과 유지
+			if (WeaponData.ActiveAbility == EWeaponSpecialAbility::DoubleDamage)
+				UpdatedStats.Damage *= 2.0f;
+			else if (WeaponData.ActiveAbility == EWeaponSpecialAbility::RapidFire)
+				UpdatedStats.FireRate *= 0.5f;
+			else if (WeaponData.ActiveAbility == EWeaponSpecialAbility::LongRange)
+				UpdatedStats.Range *= 1.8f;
+
+			// [중요] 현재 큐브 옵션 보너스만 딱 적용
+			UpdatedStats.FireRate *= (1.0f - CubeFireRateBonus / 100.0f);
+			UpdatedStats.Range *= (1.0f + CubeRangeBonus / 100.0f);
+
+			// 관통 능력 적용
+			if (bCubePenetration)
+				Weapon->SetSpecialAbility(EWeaponSpecialAbility::Penetration);
+
+			Weapon->SetWeaponStats(UpdatedStats);
+		};
+
+	ApplyWeaponBonus(LeftHandWeapon, LeftWeaponData);
+	ApplyWeaponBonus(RightHandWeapon, RightWeaponData);
+
+	UE_LOG(LogTemp, Log, TEXT("Cube Options Updated: ATK Bonus = %.0f%%"), CubeAttackPowerBonus);
+}
+
+void ASP_Character::AddCube(int32 Amount)
+{
+	// 큐브 계산
+	float BonusMultiplier = 1.0f + (CubeMoreCube / 100.0f);
+	int32 FinalAmount = FMath::Max(1, FMath::RoundToInt(Amount * BonusMultiplier));
+
+	// 큐브 추가
+	CubeCount += FinalAmount;
+
+	// [확인용 로그] 이 로그가 출력 로그 창에 뜨는지 꼭 확인하세요!
+	UE_LOG(LogTemp, Error, TEXT("!!! CUBE ADDED !!! Amount: %d, Total: %d"), FinalAmount, CubeCount);
+
+	// UI 갱신
+	ATeam16PlayerController* PC = Cast<ATeam16PlayerController>(GetController());
+	if (PC && PC->OptionWidgetInstance)
+	{
+		PC->OptionWidgetInstance->RefreshUI();
+	}
+}

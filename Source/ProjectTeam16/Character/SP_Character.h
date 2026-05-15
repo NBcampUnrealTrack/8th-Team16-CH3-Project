@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
+#include "ProjectTeam16/Cube/OptionTypes.h"
 #include "SP_Character.generated.h"
 
 UCLASS()
@@ -26,8 +27,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SyncHUDValues();
 
-	//UFUNCTION(BlueprintCallable, Category = "Level")
-	//void AddExperience(int32 ExpAmount);
+	UFUNCTION(BlueprintCallable, Category = "Level")
+	void AddExperience(int32 ExpAmount);
 	// 플레이어 체력입니다. 체력이 바뀌면 HUD의 HealthProgressBar와 HpText를 갱신합니다.
 	// pragma region status -> public 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
@@ -188,6 +189,54 @@ protected:
 
 	void FireLeftHand();
 	void FireRightHand();
+
+	public:
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeAttackPowerBonus = 0.0f;    // ATKUP
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeFireRateBonus = 0.0f;       // ATSUP (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeRangeBonus = 0.0f;          // RangeUP (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeCritRate = 0.0f;            // CritRate (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeCritDMG = 0.0f;             // CritDMG (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeEXPRate = 0.0f;             // EXPRate (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeBossDMG = 0.0f;             // BossDMG (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeSplashDMG = 0.0f;           // SplashDMG (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeX2Chance = 0.0f;            // x2chance (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		float CubeMoreCube = 0.0f;            // MoreCube (%)
+
+		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
+		bool bCubePenetration = false;        // PenUP
+
+
+		UPROPERTY(BlueprintReadOnly, Category = "Cube")
+		int32 CubeCount = 0; // 현재 보유한 큐브 개수
+
+		UFUNCTION(BlueprintCallable, Category = "Cube")
+		void AddCube(int32 Amount); // 큐브 획득 함수
+
+		// 큐브 옵션 적용 함수 (OptionWidget에서 호출)
+		UFUNCTION(BlueprintCallable, Category = "CubeOption")
+		void ApplyCubeOptions(const TArray<FOptionLine>& Options);
+
+		// 큐브 옵션 초기화
+		void ResetCubeOptions();
 
 #pragma endregion
 };
