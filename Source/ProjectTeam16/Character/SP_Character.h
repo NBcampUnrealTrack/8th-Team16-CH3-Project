@@ -226,7 +226,7 @@ protected:
 
 
 		UPROPERTY(BlueprintReadOnly, Category = "Cube")
-		int32 CubeCount = 0; // 현재 보유한 큐브 개수
+		int32 CubeCount = 999; // 현재 보유한 큐브 개수
 
 		UFUNCTION(BlueprintCallable, Category = "Cube")
 		void AddCube(int32 Amount); // 큐브 획득 함수

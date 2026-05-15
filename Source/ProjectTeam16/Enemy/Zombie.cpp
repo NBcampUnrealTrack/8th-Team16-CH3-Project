@@ -12,6 +12,9 @@
 #include "ProjectTeam16/UI/BossHealthBarWidget.h"
 #include "Components/WidgetComponent.h"
 #include "ProjectTeam16/Data/ProjectDataStructs.h"
+#include "Engine/DamageEvents.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "AITypes.h"
 
 AZombie::AZombie()
 {
@@ -77,7 +80,8 @@ void AZombie::BeginPlay()
 
 	if (PawnSensing)
 	{
-		GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 1.0f, true);
+		float RandomDelay = FMath::FRandRange(0.1f, 0.5f);
+		GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true, RandomDelay);
 	}
 }
 
@@ -89,9 +93,22 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	}
 
 	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+
+	FVector ActualHitLocation = GetActorLocation(); 
+
+	if (HitSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, ActualHitLocation);
+	}
+
+	// 파티클 
+	if (HitParticle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticle, ActualHitLocation, FRotator::ZeroRotator);
+	}
+
 	Health -= ActualDamage;
 	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
-
 	if (Health <= 0.0f)
 	{
 		bIsDead = true;
@@ -134,7 +151,20 @@ void AZombie::OnSeePlayer(APawn* SeenPawn)
 
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
 	{
-		AIController->MoveToActor(SeenPawn, 50.0f);
+		FAIMoveRequest MoveRequest;
+		MoveRequest.SetGoalActor(SeenPawn);
+		MoveRequest.SetAcceptanceRadius(50.0f);
+		MoveRequest.SetAllowPartialPath(true);
+
+		FPathFollowingRequestResult Result = AIController->MoveTo(MoveRequest);
+		if (Result.Code == EPathFollowingRequestResult::Failed)
+		{
+			// 실패시 감시 타이머를 활성화하여 플레이어를 계속 추적
+			if (!GetWorldTimerManager().IsTimerActive(SeeTimerHandle))
+			{
+				GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true);
+			}
+		}
 	}
 }
 
@@ -224,7 +254,7 @@ void AZombie::CheckVisibility()
 		TargetPlayer = PC->GetPawn();
 		OnSeePlayer(TargetPlayer);
 
-		GetWorldTimerManager().ClearTimer(SeeTimerHandle);
+		//GetWorldTimerManager().ClearTimer(SeeTimerHandle);
 	}
 }
 

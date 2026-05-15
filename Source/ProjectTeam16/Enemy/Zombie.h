@@ -5,8 +5,10 @@
 #include "Zombie.generated.h"
 
 class UPawnSensingComponent;
-class UBossHealthBarWidget;
-class UWidgetComponent;
+class USphereComponent;
+class USoundBase;
+class UParticleSystem;
+class UDataTable;
 
 UCLASS()
 class PROJECTTEAM16_API AZombie : public ACharacter
@@ -21,7 +23,7 @@ public:
 	float GetMaxHealth() const { return MaxHealth; }
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
 	FName StatRowName;
 
 	float Health;
@@ -45,15 +47,18 @@ protected:
 	
 	// 공격 범위를 감지할 충돌 구체
 	UPROPERTY(VisibleAnywhere, Category = "AI")
-	class USphereComponent* AttackRangeSphere;
+	TObjectPtr<USphereComponent> AttackRangeSphere;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	//UWidgetComponent* HealthBarWidgetComp;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	//UBossHealthBarWidget* BossHealthBar;
+	// 타격 사운드
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	TObjectPtr<USoundBase> HitSound;
+
+	// 타격 파티클 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	TObjectPtr<UParticleSystem> HitParticle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	class UDataTable* ZombieStatTable;
+	TObjectPtr<UDataTable> ZombieStatTable;
 
 	virtual void BeginPlay() override;
 
@@ -90,8 +95,6 @@ protected:
 	void AttackLoop();
 	//플레이어 감지 함수
 	void CheckVisibility();
-	
-	//void SetupBossUI();
 
 public:
 	void SetEnrageMode(bool bIsEnraged, float SpeedMultiplier);

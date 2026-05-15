@@ -46,6 +46,9 @@ ASP_Character::ASP_Character()
 	LeftHandWeapon = nullptr;
 	RightHandWeapon = nullptr;
 
+
+	CubeCritRate = 5.0f;  // 기본 크리티컬 확률 10%
+	CubeCritDMG = 1.5f;   // 추가 크리티컬 데미지 50% 
 }
 
 void ASP_Character::BeginPlay()
@@ -139,8 +142,15 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 		return;
 	}
 
-	CurrentExp += ExpAmount;
-	UE_LOG(LogTemp, Log, TEXT("Player exp gained. CurrentExp=%f MaxExp=%f Level=%d"), CurrentExp, MaxExp, CurrentLevel);
+	// [수정] 큐브 옵션 보너스 적용 (EXPRate가 20이면 1.2배)
+	float BonusMultiplier = 1.0f + (CubeEXPRate / 100.0f);
+	float FinalExpAmount = (float)ExpAmount * BonusMultiplier;
+
+	// 최종 경험치를 더해줍니다.
+	CurrentExp += FinalExpAmount;
+
+	UE_LOG(LogTemp, Log, TEXT("Exp Gained: %.1f (Base: %d, Bonus: %.0f%%)"),
+		FinalExpAmount, ExpAmount, CubeEXPRate);
 
 	// 레벨업마다 필요 경험치를 1.2배로 늘리고, 레벨업 카드 UI를 한 번 띄웁니다.
 	bool bLeveledUp = false;
@@ -154,14 +164,16 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 	}
 
 	SyncHUDValues();
-	/*
-	if (bLeveledUp)
+
+	// 레벨업 UI 실행 (주석 해제 및 함수명 확인)
+	/*if (bLeveledUp)
 	{
-		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+		if (ATeam16PlayerController* PC = Cast<ATeam16PlayerController>(GetController()))
 		{
-			Team16PlayerController->ShowLevelUpUI();
+			// 헤더파일 확인 결과 OpenLevelUpUI가 정의되어 있습니다.
+			PC->OpenLevelUpUI();
 		}
-	*/
+	}*/
 }
 
 

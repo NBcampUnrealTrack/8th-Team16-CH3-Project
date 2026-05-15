@@ -11,8 +11,8 @@ ASP_DamageText::ASP_DamageText()
     // 텍스트 정렬 및 스타일 세팅
     TextRender->SetHorizontalAlignment(EHTA_Center);
     TextRender->SetVerticalAlignment(EVRTA_TextCenter);
-    TextRender->SetTextRenderColor(FColor::Red); // 대미지는 빨간색
-    TextRender->SetWorldScale3D(FVector(2.0f));  // 글씨 크기 조정
+    TextRender->SetTextRenderColor(FColor::Red);
+    TextRender->SetWorldScale3D(FVector(2.0f));
 }
 
 void ASP_DamageText::BeginPlay()
@@ -46,3 +46,39 @@ void ASP_DamageText::SetDamageValue(float DamageAmount)
     }
 }
 
+void ASP_DamageText::SetCriticalEffect()
+{
+    if (TextRender)
+    {
+        TextRender->SetTextRenderColor(FColor::Yellow); // 크리티컬 색상
+        TextRender->SetWorldScale3D(FVector(4.0f));     // 크기 확장
+        UpSpeed = 250.0f;                               // 튀어오르는 속도
+    }
+}
+
+void ASP_DamageText::SetX2DamageEffect()
+{
+    if (TextRender)
+    {
+        TextRender->SetTextRenderColor(FColor::Cyan);
+        TextRender->SetWorldScale3D(FVector(4.0f));
+        UpSpeed = 250.0f; 
+        // 여기에 추가로 노란색 파티클을 스폰하는 로직을 넣으면 더 좋습니다.
+    }
+}
+
+// 치명타 + 2배 피해
+void ASP_DamageText::SetTranscendenceEffect()
+{
+    if (TextRender)
+    {
+        TextRender->SetTextRenderColor(FColor::Purple);
+        TextRender->SetWorldScale3D(FVector(6.0f)); 
+        UpSpeed = 300.0f; 
+
+        // 여기에 화면 흔들림(Camera Shake)을 넣으면 타격감이 극대화됩니다.
+        /*
+        UGameplayStatics::PlayWorldCameraShake(GetWorld(), TranscendenceShakeClass, GetActorLocation(), 0.0f, 500.0f);
+        */
+    }
+}

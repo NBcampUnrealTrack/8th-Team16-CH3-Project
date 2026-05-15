@@ -129,6 +129,7 @@ void UOptionWidget::OnClickClose()
         PlayerChar->ApplyCubeOptions(OptionComponent->CurrentOptions);
     }
 
+
     // 2. 위젯 제거 및 게임 복귀
     RemoveFromParent();
 

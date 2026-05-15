@@ -112,8 +112,26 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
             {
                 AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
                 float FinalDamage = CurrentStats.Damage;
-                if (const ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
+                bool bIsCritical = false; // 크리티컬 여부 저장
+                bool bIsX2Damage = false;
+
+                if (ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
                 {
+                    // 1. 크리티컬 판정
+                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
+                    {
+                        bIsCritical = true;
+                        float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
+                        FinalDamage *= CritMultiplier;
+                    }
+
+                    // 2. 2배 피해 판정 (추가됨)
+                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
+                    {
+                        bIsX2Damage = true;
+                        FinalDamage *= 2.0f;
+                    }
+
                     FinalDamage *= OwnerCharacter->AttackPower;
                 }
 
@@ -140,6 +158,11 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                             if (DamagePopup)
                             {
                                 DamagePopup->SetDamageValue(FinalDamage);
+                                if (bIsCritical) DamagePopup->SetCriticalEffect();
+                                else if (bIsX2Damage)
+                                    DamagePopup->SetX2DamageEffect();
+                                else if (bIsCritical)
+                                    DamagePopup->SetCriticalEffect();
                             }
 #endif
                         }
@@ -180,8 +203,26 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                 {
                     AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
                     float FinalDamage = CurrentStats.Damage;
-                    if (const ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
+                    bool bIsCritical = false;
+                    bool bIsX2Damage = false;
+
+                    if (ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
                     {
+                        // 1. 크리티컬 판정
+                        if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
+                        {
+                            bIsCritical = true;
+                            float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
+                            FinalDamage *= CritMultiplier;
+                        }
+
+                        // 2. 2배 피해 판정 (추가됨)
+                        if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
+                        {
+                            bIsX2Damage = true;
+                            FinalDamage *= 2.0f;
+                        }
+
                         FinalDamage *= OwnerCharacter->AttackPower;
                     }
 
@@ -198,6 +239,19 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                     if (DamagePopup)
                     {
                         DamagePopup->SetDamageValue(FinalDamage);
+
+                        if (bIsCritical && bIsX2Damage)
+                        {
+                            DamagePopup->SetTranscendenceEffect();
+                        }
+                        else if (bIsX2Damage)
+                        {
+                            DamagePopup->SetX2DamageEffect();
+                        }
+                        else if (bIsCritical)
+                        {
+                            DamagePopup->SetCriticalEffect();
+                        }
                     }
 #endif
                 }
