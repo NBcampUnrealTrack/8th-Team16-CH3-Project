@@ -16,6 +16,14 @@ public:
     // 대미지 수치를 텍스트로 변환해 세팅하는 함수
     void SetDamageValue(float DamageAmount);
 
+    // 크리 데미지 텍스트
+    void SetCriticalEffect();
+
+    // 2배 피해 전용 효과
+    void SetX2DamageEffect();
+
+    // 초월(치명타+2배) 효과
+    void SetTranscendenceEffect();
 protected:
     virtual void BeginPlay() override;
 
