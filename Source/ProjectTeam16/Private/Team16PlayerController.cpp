@@ -182,6 +182,7 @@ void ATeam16PlayerController::ShowHUDBossHealth(const FString& BossName, float C
 {
 	if (HUDWidgetInstance)
 	{
+		HUDWidgetInstance->HideTime();
 		HUDWidgetInstance->ShowBossHealth(BossName, CurrentHealth, MaxHealth);
 	}
 }
@@ -250,6 +251,7 @@ void ATeam16PlayerController::ShowGameOver()
 
 	GameOverWidgetInstance->Show();
 	GameOverWidgetInstance->UpdateScore(ZombieKillCount);
+	GameOverWidgetInstance->UpdateSurvivalTime(FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds));
 
 	UGameplayStatics::SetGamePaused(World, true);
 
@@ -299,7 +301,6 @@ void ATeam16PlayerController::HandleGameTimerTick()
 		if (HUDWidgetInstance)
 		{
 			HUDWidgetInstance->HideTime();
-			HUDWidgetInstance->ShowBossHealth(TEXT("Titan Zombie"), 1000.0f, 1000.0f);
 		}
 	}
 }

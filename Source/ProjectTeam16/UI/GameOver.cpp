@@ -89,7 +89,19 @@ void UGameOver::UpdateScore(int32 KillCount)
 {
 	if (ScoreText)
 	{
-		ScoreText->SetText(FText::FromString(FString::Printf(TEXT("죽인 좀비 수: %d"), KillCount)));
+		ScoreText->SetText(FText::AsNumber(KillCount));
+	}
+}
+
+void UGameOver::UpdateSurvivalTime(int32 SurvivalSeconds)
+{
+	const int32 ClampedSeconds = FMath::Max(0, SurvivalSeconds);
+	const int32 Minutes = ClampedSeconds / 60;
+	const int32 Seconds = ClampedSeconds % 60;
+
+	if (SurvivalTimeText)
+	{
+		SurvivalTimeText->SetText(FText::FromString(FString::Printf(TEXT("%02d : %02d"), Minutes, Seconds)));
 	}
 }
 

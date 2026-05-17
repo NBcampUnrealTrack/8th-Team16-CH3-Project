@@ -34,6 +34,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void UpdateScore(int32 KillCount);
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateSurvivalTime(int32 SurvivalSeconds);
+
 protected:
 	UFUNCTION()
 	void OnRetryButtonClicked();
@@ -98,6 +101,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> ScoreText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> SurvivalTimeText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> RespawnProgressBar;

@@ -109,6 +109,15 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 
 	Health -= ActualDamage;
 	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
+
+	if (ActorHasTag(TEXT("Boss")))
+	{
+		if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+		{
+			PlayerController->UpdateHUDBossHealth(Health, MaxHealth);
+		}
+	}
+
 	if (Health <= 0.0f)
 	{
 		bIsDead = true;
