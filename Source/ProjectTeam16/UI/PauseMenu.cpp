@@ -125,7 +125,11 @@ void UPauseMenu::OnRestartButtonClicked()
 		return;
 	}
 
-	UGameplayStatics::SetGamePaused(World, false);
+	if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->FadeToLevel(FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), TEXT("SkipMainMenu"));
+		return;
+	}
 
 	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("SkipMainMenu"));
 }
@@ -142,15 +146,17 @@ void UPauseMenu::OnRestartButtonUnhovered()
 
 void UPauseMenu::OnMainMenuButtonClicked()
 {
-	RemoveFromParent();
-
 	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
 	}
 
-	UGameplayStatics::SetGamePaused(World, false);
+	if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->FadeToLevel(FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), TEXT("ShowMainMenu"));
+		return;
+	}
 
 	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("ShowMainMenu"));
 }

@@ -144,8 +144,6 @@ void ASpawnVolume::SpawnZombie()
 
 void ASpawnVolume::SpawnBoss()
 {
-	bBossSpawned = true;
-
 	// 기존에 있는 모든 좀비 제거 
 	TArray<AActor*> FoundZombies;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AZombie::StaticClass(), FoundZombies);
@@ -169,6 +167,7 @@ void ASpawnVolume::SpawnBoss()
 			AZombie* Boss = GetWorld()->SpawnActor<AZombie>(BossClass, ProjectedLocation.Location, FRotator::ZeroRotator);
 			if (Boss)
 			{
+				bBossSpawned = true;
 				Boss->Tags.AddUnique(TEXT("Boss"));
 
 				if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))

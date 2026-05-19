@@ -2,6 +2,7 @@
 
 #include "ProjectTeam16/UI/GameOver.h"
 
+#include "Team16PlayerController.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -113,7 +114,11 @@ void UGameOver::OnRetryButtonClicked()
 		return;
 	}
 
-	UGameplayStatics::SetGamePaused(World, false);
+	if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->FadeToLevel(FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), TEXT("SkipMainMenu"));
+		return;
+	}
 
 	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("SkipMainMenu"));
 }
@@ -136,7 +141,12 @@ void UGameOver::OnMainMenuButtonClicked()
 		return;
 	}
 
-	UGameplayStatics::SetGamePaused(World, false);
+	if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->FadeToLevel(FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), TEXT("ShowMainMenu"));
+		return;
+	}
+
 	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("ShowMainMenu"));
 }
 

@@ -8,7 +8,6 @@
 #include "GameFramework\CharacterMovementComponent.h"
 #include "Components\CapsuleComponent.h"
 #include "SpawnVolume.h"
-#include "ProjectTeam16/UI/BossHealthBarWidget.h"
 #include "Components/WidgetComponent.h"
 #include "ProjectTeam16/Data/ProjectDataStructs.h"
 #include "Engine/DamageEvents.h"
@@ -126,6 +125,7 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	if (Health <= 0.0f)
 	{
 		bIsDead = true;
+		const bool bWasBoss = ActorHasTag(TEXT("Boss"));
 
 		// 월드에서 SpawnVolume을 찾아 카운트를 줄여줍니다.
 		AActor* FoundSpawner = UGameplayStatics::GetActorOfClass(GetWorld(), ASpawnVolume::StaticClass());
@@ -149,6 +149,19 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 		if (PlayerController)
 		{
 			PlayerController->RegisterZombieKill(ExpAmount);
+		}
+
+		if (bWasBoss)
+		{
+			if (!PlayerController)
+			{
+				PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+			}
+
+			if (PlayerController)
+			{
+				PlayerController->StartBossClearSequence();
+			}
 		}
 		
 		Destroy();

@@ -24,6 +24,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Hide();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateScore(int32 KillCount);
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateClearTime(int32 ClearSeconds);
+
 protected:
 	UFUNCTION()
 	void OnContinueButtonClicked();

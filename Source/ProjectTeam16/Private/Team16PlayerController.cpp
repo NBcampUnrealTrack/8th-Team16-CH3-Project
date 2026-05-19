@@ -6,11 +6,20 @@
 #include "InputAction.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectTeam16/Character/SP_Character.h"
+#include "ProjectTeam16/UI/ClearResult.h"
 #include "ProjectTeam16/UI/GameOver.h"
 #include "ProjectTeam16/UI/InGameHUD.h"
 #include "ProjectTeam16/UI/LevelUpWidget.h"
 #include "ProjectTeam16/Cube/OptionWidget.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
+#include "Components/Widget.h"
+
+void ATeam16PlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	PlayFadeOut();
+}
 
 void ATeam16PlayerController::SetupInputComponent()
 {
@@ -91,6 +100,166 @@ void ATeam16PlayerController::TogglePauseMenu()
 	InputMode.SetWidgetToFocus(PauseMenuWidgetInstance->TakeWidget());
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(InputMode);
+}
+
+void ATeam16PlayerController::PlayFadeOut()
+{
+	if (!FadeScreenWidgetClass)
+	{
+		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
+	}
+
+	if (!FadeScreenWidgetClass)
+	{
+		return;
+	}
+
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->RemoveFromParent();
+		FadeScreenWidgetInstance = nullptr;
+	}
+
+	FadeScreenWidgetInstance = CreateWidget<UUserWidget>(this, FadeScreenWidgetClass);
+	if (!FadeScreenWidgetInstance)
+	{
+		return;
+	}
+
+	FadeScreenWidgetInstance->SetRenderOpacity(1.0f);
+	FadeScreenWidgetInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+	FadeScreenWidgetInstance->AddToViewport(1000);
+
+	if (FadeOutTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FadeOutTickerHandle);
+		FadeOutTickerHandle.Reset();
+	}
+
+	FadeOutElapsedTime = 0.0f;
+	FadeOutTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ATeam16PlayerController::UpdateFadeOut)
+	);
+}
+
+bool ATeam16PlayerController::UpdateFadeOut(float DeltaTime)
+{
+	FadeOutElapsedTime += DeltaTime;
+
+	const float FadeAlpha = 1.0f - FMath::Clamp(FadeOutElapsedTime / FadeOutDuration, 0.0f, 1.0f);
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->SetRenderOpacity(FadeAlpha);
+	}
+
+	if (FadeAlpha > 0.0f)
+	{
+		return true;
+	}
+
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->RemoveFromParent();
+		FadeScreenWidgetInstance = nullptr;
+	}
+
+	FadeOutTickerHandle.Reset();
+	return false;
+}
+
+void ATeam16PlayerController::FadeToLevel(FName LevelName, const FString& Options)
+{
+	if (bIsFadingToLevel || LevelName.IsNone())
+	{
+		return;
+	}
+
+	if (!FadeScreenWidgetClass)
+	{
+		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
+	}
+
+	if (!FadeScreenWidgetClass)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			UGameplayStatics::SetGamePaused(World, false);
+			UGameplayStatics::OpenLevel(World, LevelName, true, Options);
+		}
+		return;
+	}
+
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->RemoveFromParent();
+		FadeScreenWidgetInstance = nullptr;
+	}
+
+	FadeScreenWidgetInstance = CreateWidget<UUserWidget>(this, FadeScreenWidgetClass);
+	if (!FadeScreenWidgetInstance)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			UGameplayStatics::SetGamePaused(World, false);
+			UGameplayStatics::OpenLevel(World, LevelName, true, Options);
+		}
+		return;
+	}
+
+	PendingFadeLevelName = LevelName;
+	PendingFadeLevelOptions = Options;
+	FadeToLevelElapsedTime = 0.0f;
+	bIsFadingToLevel = true;
+
+	FadeScreenWidgetInstance->SetRenderOpacity(0.0f);
+	FadeScreenWidgetInstance->SetVisibility(ESlateVisibility::Visible);
+	FadeScreenWidgetInstance->AddToViewport(1000);
+
+	if (FadeOutTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FadeOutTickerHandle);
+		FadeOutTickerHandle.Reset();
+	}
+
+	if (FadeToLevelTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FadeToLevelTickerHandle);
+		FadeToLevelTickerHandle.Reset();
+	}
+
+	FadeToLevelTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ATeam16PlayerController::UpdateFadeToLevel)
+	);
+}
+
+bool ATeam16PlayerController::UpdateFadeToLevel(float DeltaTime)
+{
+	FadeToLevelElapsedTime += DeltaTime;
+
+	const float FadeAlpha = FMath::Clamp(FadeToLevelElapsedTime / FadeToLevelDuration, 0.0f, 1.0f);
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->SetRenderOpacity(FadeAlpha);
+	}
+
+	if (FadeAlpha < 1.0f)
+	{
+		return true;
+	}
+
+	FadeToLevelTickerHandle.Reset();
+	bIsFadingToLevel = false;
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+		UGameplayStatics::OpenLevel(World, PendingFadeLevelName, true, PendingFadeLevelOptions);
+	}
+
+	return false;
 }
 
 void ATeam16PlayerController::ShowInGameHUD()
@@ -180,8 +349,22 @@ void ATeam16PlayerController::UpdateHUDZombieKillCount(int32 KillCount)
 
 void ATeam16PlayerController::ShowHUDBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
 {
+	bBossHUDActive = true;
+	StopGameTimer();
+
+	if (!HUDWidgetInstance && HUDWidgetClass)
+	{
+		HUDWidgetInstance = CreateWidget<UInGameHUD>(this, HUDWidgetClass);
+	}
+
 	if (HUDWidgetInstance)
 	{
+		if (!HUDWidgetInstance->IsInViewport())
+		{
+			HUDWidgetInstance->AddToViewport();
+		}
+
+		HUDWidgetInstance->Show();
 		HUDWidgetInstance->HideTime();
 		HUDWidgetInstance->ShowBossHealth(BossName, CurrentHealth, MaxHealth);
 	}
@@ -197,6 +380,8 @@ void ATeam16PlayerController::UpdateHUDBossHealth(float CurrentHealth, float Max
 
 void ATeam16PlayerController::HideHUDBossHealth()
 {
+	bBossHUDActive = false;
+
 	if (HUDWidgetInstance)
 	{
 		HUDWidgetInstance->HideBossHealth();
@@ -263,6 +448,298 @@ void ATeam16PlayerController::ShowGameOver()
 	SetInputMode(InputMode);
 }
 
+void ATeam16PlayerController::StartBossClearSequence()
+{
+	if (bBossClearSequenceStarted)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	bBossClearSequenceStarted = true;
+	StopGameTimer();
+
+	// 보스가 죽은 직후 바로 결과창을 띄우지 않고, 전투 마무리 연출을 위해 잠깐 대기합니다.
+	World->GetTimerManager().ClearTimer(BossClearStartTimerHandle);
+	World->GetTimerManager().SetTimer(
+		BossClearStartTimerHandle,
+		this,
+		&ATeam16PlayerController::ShowBossClearAnnouncement,
+		BossClearStartDelay,
+		false
+	);
+}
+
+void ATeam16PlayerController::ShowBossClearAnnouncement()
+{
+	if (!BossClearWidgetClass)
+	{
+		BossClearWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/HUD/WBP_BossClear.WBP_BossClear_C"));
+	}
+
+	if (!BossClearWidgetClass)
+	{
+		FadeToClearResult();
+		return;
+	}
+
+	if (BossClearWidgetInstance)
+	{
+		BossClearWidgetInstance->RemoveFromParent();
+		BossClearWidgetInstance = nullptr;
+	}
+
+	BossClearWidgetInstance = CreateWidget<UUserWidget>(this, BossClearWidgetClass);
+	if (!BossClearWidgetInstance)
+	{
+		FadeToClearResult();
+		return;
+	}
+
+	HideInGameHUD();
+	BossClearWidgetInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+	BossClearWidgetInstance->AddToViewport(900);
+
+	BossClearAnimationElapsedTime = 0.0f;
+	ApplyBossClearAnimation(BossClearAnimationElapsedTime);
+
+	if (BossClearAnimationTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(BossClearAnimationTickerHandle);
+		BossClearAnimationTickerHandle.Reset();
+	}
+
+	BossClearAnimationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ATeam16PlayerController::UpdateBossClearAnimation)
+	);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BossClearToResultTimerHandle);
+		World->GetTimerManager().SetTimer(
+			BossClearToResultTimerHandle,
+			this,
+			&ATeam16PlayerController::FadeToClearResult,
+			BossClearDisplayDuration,
+			false
+		);
+	}
+}
+
+bool ATeam16PlayerController::UpdateBossClearAnimation(float DeltaTime)
+{
+	if (!BossClearWidgetInstance)
+	{
+		BossClearAnimationTickerHandle.Reset();
+		return false;
+	}
+
+	BossClearAnimationElapsedTime += DeltaTime;
+	ApplyBossClearAnimation(BossClearAnimationElapsedTime);
+	return true;
+}
+
+void ATeam16PlayerController::ApplyBossClearAnimation(float ElapsedTime) const
+{
+	if (!BossClearWidgetInstance)
+	{
+		return;
+	}
+
+	UWidget* DarkOverlay = BossClearWidgetInstance->GetWidgetFromName(TEXT("DarkOverlay"));
+	UWidget* CenterLineGlow = BossClearWidgetInstance->GetWidgetFromName(TEXT("CenterLineGlow"));
+	UWidget* BossClearImage = BossClearWidgetInstance->GetWidgetFromName(TEXT("BossClearImage"));
+
+	const float DarkOpacity = FMath::Clamp(ElapsedTime / 0.45f, 0.0f, 1.0f) * 0.82f;
+	ApplyWidgetAnimationState(DarkOverlay, DarkOpacity, FVector2D(1.0f, 1.0f), FVector2D::ZeroVector);
+
+	const float GlowInAlpha = FMath::Clamp(ElapsedTime / 0.25f, 0.0f, 1.0f);
+	const float GlowOutAlpha = 1.0f - FMath::Clamp((ElapsedTime - 0.35f) / 0.7f, 0.0f, 1.0f);
+	const float GlowOpacity = GlowInAlpha * GlowOutAlpha;
+	const float GlowScaleX = FMath::Lerp(0.2f, 1.35f, GlowInAlpha);
+	ApplyWidgetAnimationState(CenterLineGlow, GlowOpacity, FVector2D(GlowScaleX, 1.0f), FVector2D::ZeroVector);
+
+	const float ImageElapsedTime = FMath::Max(0.0f, ElapsedTime - 0.35f);
+	const float ImageOpacity = FMath::Clamp(ImageElapsedTime / 0.2f, 0.0f, 1.0f);
+	float ImageScale = 0.9f;
+	if (ImageElapsedTime < 0.18f)
+	{
+		ImageScale = FMath::Lerp(0.9f, 1.12f, ImageElapsedTime / 0.18f);
+	}
+	else if (ImageElapsedTime < 0.38f)
+	{
+		ImageScale = FMath::Lerp(1.12f, 1.0f, (ImageElapsedTime - 0.18f) / 0.2f);
+	}
+	else
+	{
+		ImageScale = 1.0f;
+	}
+
+	const float ShakeAlpha = 1.0f - FMath::Clamp((ImageElapsedTime - 0.25f) / 1.1f, 0.0f, 1.0f);
+	const float ShakeX = FMath::Sin(ImageElapsedTime * 55.0f) * 7.0f * ShakeAlpha;
+	const float ShakeY = FMath::Cos(ImageElapsedTime * 47.0f) * 3.0f * ShakeAlpha;
+	const float ShakeAngle = FMath::Sin(ImageElapsedTime * 42.0f) * 1.2f * ShakeAlpha;
+	ApplyWidgetAnimationState(BossClearImage, ImageOpacity, FVector2D(ImageScale, ImageScale), FVector2D(ShakeX, ShakeY), ShakeAngle);
+}
+
+void ATeam16PlayerController::ApplyWidgetAnimationState(UWidget* TargetWidget, float Opacity, const FVector2D& Scale, const FVector2D& Translation, float Angle) const
+{
+	if (!TargetWidget)
+	{
+		return;
+	}
+
+	FWidgetTransform WidgetTransform;
+	WidgetTransform.Translation = Translation;
+	WidgetTransform.Scale = Scale;
+	WidgetTransform.Angle = Angle;
+
+	TargetWidget->SetRenderOpacity(Opacity);
+	TargetWidget->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+	TargetWidget->SetRenderTransform(WidgetTransform);
+}
+
+void ATeam16PlayerController::FadeToClearResult()
+{
+	if (!FadeScreenWidgetClass)
+	{
+		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
+	}
+
+	if (!FadeScreenWidgetClass)
+	{
+		ShowClearResult();
+		return;
+	}
+
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->RemoveFromParent();
+		FadeScreenWidgetInstance = nullptr;
+	}
+
+	FadeScreenWidgetInstance = CreateWidget<UUserWidget>(this, FadeScreenWidgetClass);
+	if (!FadeScreenWidgetInstance)
+	{
+		ShowClearResult();
+		return;
+	}
+
+	FadeToClearResultElapsedTime = 0.0f;
+	FadeScreenWidgetInstance->SetRenderOpacity(0.0f);
+	FadeScreenWidgetInstance->SetVisibility(ESlateVisibility::Visible);
+	FadeScreenWidgetInstance->AddToViewport(1000);
+
+	if (FadeToClearResultTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FadeToClearResultTickerHandle);
+		FadeToClearResultTickerHandle.Reset();
+	}
+
+	FadeToClearResultTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ATeam16PlayerController::UpdateFadeToClearResult)
+	);
+}
+
+bool ATeam16PlayerController::UpdateFadeToClearResult(float DeltaTime)
+{
+	FadeToClearResultElapsedTime += DeltaTime;
+
+	const float FadeAlpha = FMath::Clamp(FadeToClearResultElapsedTime / FadeToClearResultDuration, 0.0f, 1.0f);
+	if (FadeScreenWidgetInstance)
+	{
+		FadeScreenWidgetInstance->SetRenderOpacity(FadeAlpha);
+	}
+
+	if (FadeAlpha < 1.0f)
+	{
+		return true;
+	}
+
+	if (BossClearAnimationTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(BossClearAnimationTickerHandle);
+		BossClearAnimationTickerHandle.Reset();
+	}
+
+	if (BossClearWidgetInstance)
+	{
+		BossClearWidgetInstance->RemoveFromParent();
+		BossClearWidgetInstance = nullptr;
+	}
+
+	ShowClearResult();
+	PlayFadeOut();
+
+	FadeToClearResultTickerHandle.Reset();
+	return false;
+}
+
+void ATeam16PlayerController::ShowClearResult()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	HideInGameHUD();
+
+	if (PauseMenuWidgetInstance)
+	{
+		PauseMenuWidgetInstance->RemoveFromParent();
+		PauseMenuWidgetInstance = nullptr;
+	}
+
+	if (GameOverWidgetInstance)
+	{
+		GameOverWidgetInstance->RemoveFromParent();
+		GameOverWidgetInstance = nullptr;
+	}
+
+	if (!ClearResultWidgetClass)
+	{
+		ClearResultWidgetClass = LoadClass<UClearResult>(nullptr, TEXT("/Game/UI/Menus/WBP_ClearResult.WBP_ClearResult_C"));
+	}
+
+	if (!ClearResultWidgetClass)
+	{
+		return;
+	}
+
+	if (!ClearResultWidgetInstance)
+	{
+		ClearResultWidgetInstance = CreateWidget<UClearResult>(this, ClearResultWidgetClass);
+	}
+
+	if (!ClearResultWidgetInstance)
+	{
+		return;
+	}
+
+	if (!ClearResultWidgetInstance->IsInViewport())
+	{
+		ClearResultWidgetInstance->AddToViewport(100);
+	}
+
+	ClearResultWidgetInstance->Show();
+	ClearResultWidgetInstance->UpdateScore(ZombieKillCount);
+	ClearResultWidgetInstance->UpdateClearTime(FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds));
+
+	UGameplayStatics::SetGamePaused(World, true);
+	bShowMouseCursor = true;
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(ClearResultWidgetInstance->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
+}
+
 void ATeam16PlayerController::StartGameTimer()
 {
 	UWorld* World = GetWorld();
@@ -271,6 +748,7 @@ void ATeam16PlayerController::StartGameTimer()
 		return;
 	}
 
+	bBossHUDActive = false;
 	
 	GameTimerRemainingSeconds = FMath::Max(0, GameTimerStartSeconds);
 	UpdateHUDTime();
@@ -309,6 +787,12 @@ void ATeam16PlayerController::UpdateHUDTime()
 {
 	if (HUDWidgetInstance)
 	{
+		if (bBossHUDActive)
+		{
+			HUDWidgetInstance->HideTime();
+			return;
+		}
+
 		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
 	}
 }

@@ -98,6 +98,7 @@ void UMainMenu::OnStartButtonClicked()
 		if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
 		{
 			Team16PlayerController->ShowInGameHUD();
+			Team16PlayerController->PlayFadeOut();
 		}
 	}
 }

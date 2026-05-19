@@ -30,6 +30,12 @@ void UInGameHUD::NativeConstruct()
 		BossHealthText = BossHPText;
 	}
 
+	ConfigureStableBossHealthText(BossHealthText);
+	if (BossHPText && BossHPText != BossHealthText)
+	{
+		ConfigureStableBossHealthText(BossHPText);
+	}
+
 	// BP에서 HealthProgressBar 이름이 정확히 바인딩되면, 체력 바는 빨간색/100%로 시작합니다.
 	if (HealthProgressBar)
 	{
@@ -265,4 +271,17 @@ void UInGameHUD::UpdateBossHealth(float CurrentHealth, float MaxHealth)
 		const int32 MaxHealthValue = FMath::Max(0, FMath::RoundToInt(MaxHealth));
 		BossHPText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), CurrentHealthValue, MaxHealthValue)));
 	}
+}
+
+void UInGameHUD::ConfigureStableBossHealthText(UTextBlock* TargetText) const
+{
+	if (!TargetText)
+	{
+		return;
+	}
+
+	// 체력 숫자 자릿수가 바뀌어도 TextBlock의 원하는 크기가 줄어들지 않게 고정합니다.
+	TargetText->SetAutoWrapText(false);
+	TargetText->SetJustification(ETextJustify::Center);
+	TargetText->SetMinDesiredWidth(260.0f);
 }

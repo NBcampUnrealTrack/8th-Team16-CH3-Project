@@ -55,6 +55,8 @@ public:
 	void UpdateBossHealth(float CurrentHealth, float MaxHealth);
 
 protected:
+	void ConfigureStableBossHealthText(UTextBlock* TargetText) const;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> ExperienceProgressBar;
 
