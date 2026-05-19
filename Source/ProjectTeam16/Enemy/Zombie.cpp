@@ -3,7 +3,6 @@
 #include "AIController.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Perception/PawnSensingComponent.h"
 #include "Team16PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework\CharacterMovementComponent.h"
@@ -14,13 +13,13 @@
 #include "ProjectTeam16/Data/ProjectDataStructs.h"
 #include "Engine/DamageEvents.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "NavigationSystem.h"
 #include "AITypes.h"
 
 AZombie::AZombie()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	
-	PawnSensing = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSensing"));
+
 	AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
 	AttackRangeSphere->SetupAttachment(RootComponent);
 
@@ -40,11 +39,6 @@ AZombie::AZombie()
 		GetMesh()->CastShadow = false;
 	}
 
-	if (PawnSensing)
-	{
-		PawnSensing->SensingInterval = 2.0f;
-	}
-
 	// 공격 범위 설정 (이 구체는 플레이어를 감지해야 하므로 오버랩 유지)
 	AttackRangeSphere->SetSphereRadius(150.0f);
 	AttackRangeSphere->SetGenerateOverlapEvents(true);
@@ -52,7 +46,6 @@ AZombie::AZombie()
 
 	AttackRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlapBegin);
 	AttackRangeSphere->OnComponentEndOverlap.AddDynamic(this, &AZombie::OnAttackOverlapEnd);
-
 }
 
 
@@ -77,7 +70,7 @@ void AZombie::BeginPlay()
 		}
 	}
 
-	if (ZombieStatTable && !StatRowName.IsNone()) 
+	if (ZombieStatTable && !StatRowName.IsNone())
 	{
 		FZombieStatData* StatData = ZombieStatTable->FindRow<FZombieStatData>(StatRowName, TEXT(""));
 
@@ -86,28 +79,15 @@ void AZombie::BeginPlay()
 			MaxHealth = StatData->MaxHealth;
 			Health = MaxHealth;
 			DamageAmount = StatData->Damage;
-			ExpAmount = StatData->ExpReward; 
+			ExpAmount = StatData->ExpReward;
 
 			if (GetCharacterMovement())
 			{
 				GetCharacterMovement()->MaxWalkSpeed = StatData->MoveSpeed;
 			}
 		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("%s failed to find zombie stat row: %s"), *GetName(), *StatRowName.ToString());
-		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s has no ZombieStatTable or StatRowName."), *GetName());
-	}
-
-	if (PawnSensing)
-	{
-		float RandomDelay = FMath::FRandRange(0.1f, 0.5f);
-		GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true, RandomDelay);
-	}
+	GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true);
 }
 
 float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -177,31 +157,6 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
 	return ActualDamage;
 }
 
-void AZombie::OnSeePlayer(APawn* SeenPawn)
-{
-	if (!SeenPawn || bIsDead) return;
-
-	TargetPlayer = SeenPawn;
-
-	if (AAIController* AIController = Cast<AAIController>(GetController()))
-	{
-		FAIMoveRequest MoveRequest;
-		MoveRequest.SetGoalActor(SeenPawn);
-		MoveRequest.SetAcceptanceRadius(50.0f);
-		MoveRequest.SetAllowPartialPath(true);
-
-		FPathFollowingRequestResult Result = AIController->MoveTo(MoveRequest);
-		if (Result.Code == EPathFollowingRequestResult::Failed)
-		{
-			// 실패시 감시 타이머를 활성화하여 플레이어를 계속 추적
-			if (!GetWorldTimerManager().IsTimerActive(SeeTimerHandle))
-			{
-				GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true);
-			}
-		}
-	}
-}
-
 void AZombie::OnAttackOverlapBegin(
 	UPrimitiveComponent* OverlappedComp,
 	AActor* OtherActor,
@@ -235,7 +190,7 @@ void AZombie::OnAttackOverlapEnd(
 
 		if (IsValid(TargetPlayer))
 		{
-			OnSeePlayer(TargetPlayer);
+			ChasePlayer();
 		}
 	}
 }
@@ -259,38 +214,33 @@ void AZombie::AttackLoop()
 
 void AZombie::CheckVisibility()
 {
-	// 1. 플레이어의 '컨트롤러'를 가져옵니다 (카메라 제어권자)
 	APlayerController* PC = Cast<APlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	if (!PC) return;
 
-	// 2. 카메라의 실제 위치와 바라보는 방향(화살표)을 가져옵니다.
 	FVector CameraLocation;
 	FRotator CameraRotation;
 	PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
 
-	FVector CameraForward = CameraRotation.Vector(); // 카메라가 뚫어지게 보는 방향
-
-	// 3. 카메라에서 나(좀비)를 향하는 화살표를 만듭니다.
+	FVector CameraForward = CameraRotation.Vector();
 	FVector ToZombie = (GetActorLocation() - CameraLocation).GetSafeNormal();
 
-	// 4. 두 화살표 사이의 일치도(내적)를 구합니다.
 	float DotProduct = FVector::DotProduct(CameraForward, ToZombie);
-
-	// 각도로 변환 (0도에 가까울수록 시선 정중앙)
 	float Angle = FMath::RadiansToDegrees(FMath::Acos(DotProduct));
-
-	// 5. 거리 측정
 	float Distance = FVector::Dist(GetActorLocation(), CameraLocation);
 
-	// 6. 판단 (시야각 80도 이내거나 거리가 400 이내면 발동!)
+	// 시야각 80도 이내거나 거리가 400 이내일 때 플레이어 포착
 	if (Angle < 80.0f || Distance < 400.0f)
 	{
 		TargetPlayer = PC->GetPawn();
-		OnSeePlayer(TargetPlayer);
 
-		//GetWorldTimerManager().ClearTimer(SeeTimerHandle);
+		// 중복 호출하지 않도록 방어하고, 처음 발견했을 때만 추격
+		if (TargetPlayer && !GetWorldTimerManager().IsTimerActive(ResetChaseTimerHandle))
+		{
+			ChasePlayer();
+		}
 	}
 }
+
 
 void AZombie::SetEnrageMode(bool bIsEnraged, float SpeedMultiplier)
 {
@@ -316,6 +266,80 @@ void AZombie::SetEnrageMode(bool bIsEnraged, float SpeedMultiplier)
 	}
 }
 
+void AZombie::ChasePlayer()
+{
+	if (!TargetPlayer || bIsDead) return;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+	if (!AIController) return;
+
+	FAIMoveRequest MoveRequest;
+	MoveRequest.SetGoalActor(TargetPlayer);
+	MoveRequest.SetAcceptanceRadius(60.0f); 
+	MoveRequest.SetAllowPartialPath(true);
+
+	FPathFollowingRequestResult Result = AIController->MoveTo(MoveRequest);
+
+	// 추적 성공 
+	if (Result.Code == EPathFollowingRequestResult::AlreadyAtGoal)
+	{
+		RetryChaseWithDelay();
+	}
+	// 추적 실패
+	else if (Result.Code == EPathFollowingRequestResult::Failed)
+	{
+		MoveToNearbyTarget();
+	}
+}
+
+void AZombie::MoveToNearbyTarget()
+{
+	if (!TargetPlayer || bIsDead) return;
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+	if (!AIController ) return;
+
+	// 플레이어 좌표 확보
+	FVector PlayerLocation = TargetPlayer->GetActorLocation();
+	FVector RandomReachableLocation;
+
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (NavSys)
+	{
+		FNavLocation PredictedLocation;
+		// 반지름 350.0f 내에서 이동 가능한 무작위 위치 찾기
+		bool bFoundPoint = NavSys->GetRandomReachablePointInRadius(PlayerLocation, 350.0f, PredictedLocation);
+
+		if (bFoundPoint)
+		{
+			RandomReachableLocation = PredictedLocation.Location; // 실제 좌표 추출
+
+			FAIMoveRequest MoveRequest;
+			MoveRequest.SetGoalLocation(RandomReachableLocation);
+			MoveRequest.SetAcceptanceRadius(60.0f);
+			MoveRequest.SetAllowPartialPath(true);
+
+			AIController->MoveTo(MoveRequest);
+		}
+	}
+
+	// 성공 여부와 상관없이 무한 루프 방지용 딜레이 후 복귀
+	RetryChaseWithDelay();
+}
+
+void AZombie::RetryChaseWithDelay()
+{
+	if (bIsDead) return;
+
+	// 딜레이로 스택 오버플로우나 렉 방지
+	GetWorldTimerManager().SetTimer(
+		ResetChaseTimerHandle,
+		this,
+		&AZombie::ChasePlayer,
+		0.1f,
+		false
+	);
+}
 
 
 

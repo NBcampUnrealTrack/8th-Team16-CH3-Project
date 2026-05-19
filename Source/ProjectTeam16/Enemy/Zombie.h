@@ -4,7 +4,6 @@
 #include "GameFramework/Character.h"
 #include "Zombie.generated.h"
 
-class UPawnSensingComponent;
 class USphereComponent;
 class USoundBase;
 class UParticleSystem;
@@ -32,18 +31,14 @@ protected:
 	float LastAttackTime;
 	int32 ExpAmount;
 
-	bool bIsAggroed = false;
-
 	FTimerHandle AttackTimerHandle;
 	FTimerHandle SeeTimerHandle;
+	FTimerHandle ResetChaseTimerHandle;
 
 	bool bIsDead = false;
 
 	//탐지된 플레이어 정보저장
 	APawn* TargetPlayer = nullptr;
-
-	UPROPERTY(VisibleAnywhere, Category = "AI")
-	TObjectPtr<UPawnSensingComponent> PawnSensing;
 	
 	// 공격 범위를 감지할 충돌 구체
 	UPROPERTY(VisibleAnywhere, Category = "AI")
@@ -69,9 +64,6 @@ protected:
 		AActor* DamageCauser
 	) override;
 
-	UFUNCTION()
-	void OnSeePlayer(APawn* SeenPawn);
-
 	// 충돌 시작/종료 시 호출될 함수들
 	UFUNCTION()
 	void OnAttackOverlapBegin(
@@ -95,6 +87,14 @@ protected:
 	void AttackLoop();
 	//플레이어 감지 함수
 	void CheckVisibility();
+	// 블루프린트의 ChasePlayer 커스텀 이벤트 역할을 할 함수
+	void ChasePlayer();
+
+	// 블루프린트의 On Fail 분기 시 플레이어 주변 우회 처리를 맡을 함수
+	void MoveToNearbyTarget();
+
+	// 무한 루프 크래시를 방지하기 위해 0.1초 딜레이 후 ChasePlayer를 부를 헬퍼 함수
+	void RetryChaseWithDelay();
 
 public:
 	void SetEnrageMode(bool bIsEnraged, float SpeedMultiplier);

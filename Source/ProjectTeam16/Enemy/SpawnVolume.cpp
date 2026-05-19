@@ -31,31 +31,33 @@ FVector ASpawnVolume::GetRandomPointAroundPlayer()
 	if (!PlayerPawn) return FVector::ZeroVector;
 
 	FVector PlayerLocation = PlayerPawn->GetActorLocation();
-	FVector ForwardDir = PlayerPawn->GetActorForwardVector();
 
-	// 부채꼴 좌표 계산
-	float ConeHalfAngle = 75.0f;
-	float RandomAngle = FMath::RandRange(-ConeHalfAngle, ConeHalfAngle);
-	FVector SpawnDir = ForwardDir.RotateAngleAxis(RandomAngle, FVector::UpVector);
+	// 0도 ~ 360도 사이의 랜덤한 각도추출
+	float RandomAngleDegree = FMath::RandRange(0.0f, 360.0f);
+	float RandomAngleRadian = FMath::DegreesToRadians(RandomAngleDegree);
 
+	// 도넛의 최소 반경과 최대 반경 사이의 무작위 거리 추출
 	float RandomDistance = FMath::RandRange(MinRadius, MaxRadius);
-	FVector RawLocation = PlayerLocation + (SpawnDir * RandomDistance);
+	float SpawnX = PlayerLocation.X + (FMath::Cos(RandomAngleRadian) * RandomDistance);
+	float SpawnY = PlayerLocation.Y + (FMath::Sin(RandomAngleRadian) * RandomDistance);
 
-	// 해당 좌표가 NavMesh 위인지 검증 및 보정
+	// Z축은 플레이어와 동일한 높이로 세팅
+	FVector RawLocation = FVector(SpawnX, SpawnY, PlayerLocation.Z);
+
+	// 해당 좌표가 NavMesh 위인지 검증 
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 	if (NavSys)
 	{
 		FNavLocation ProjectedLocation;
-		// RawLocation 주변 500유닛 이내에서 가장 가까운 NavMesh 바닥을 찾습니다.
+		// RawLocation 주변 500유닛 이내에서 가장 가까운 NavMesh 바닥을 찾음
 		if (NavSys->ProjectPointToNavigation(RawLocation, ProjectedLocation, FVector(500.f, 500.f, 500.f)))
 		{
-			// 성공하면 보정된 좌표 반환
+			// 검증 완료된 바닥 좌표 반환
 			return ProjectedLocation.Location;
 		}
 	}
 
-	// 만약 NavMesh 바닥을 찾지 못했다면 (건물 한복판 등), 
-	// 이번 스폰은 포기하거나 플레이어 위치 근처 안전한 곳을 반환합니다.
+	// 만약 NavMesh 바닥이 없는 허공이나 벽 내부라면 제로 벡터 반환 (스폰 X)
 	return FVector::ZeroVector;
 }
 

@@ -15,10 +15,14 @@ void AItemSpawnVolume::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (int i = 0; i < 3; ++i)
-	{
-		SpawnBox();
-	}
+	FTimerHandle InitialSpawnHandle;
+	GetWorldTimerManager().SetTimer(InitialSpawnHandle, [this]()
+		{
+			for (int i = 0; i < 3; ++i)
+			{
+				SpawnBox();
+			}
+		}, 0.5f, false);
 
 	GetWorldTimerManager().SetTimer(SpawnTimerHandle, this, &AItemSpawnVolume::SpawnBox, SpawnTime, true);
 }
