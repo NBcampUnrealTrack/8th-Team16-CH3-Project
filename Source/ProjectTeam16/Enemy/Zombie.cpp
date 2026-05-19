@@ -60,7 +60,24 @@ void AZombie::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ZombieStatTable) 
+	if (!ZombieStatTable)
+	{
+		ZombieStatTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/Data/DT_ZombieStat.DT_ZombieStat"));
+	}
+
+	if (StatRowName.IsNone())
+	{
+		FString InferredRowName = GetClass() ? GetClass()->GetName() : GetName();
+		InferredRowName.RemoveFromEnd(TEXT("_C"));
+		InferredRowName.RemoveFromStart(TEXT("BP_"));
+
+		if (InferredRowName.StartsWith(TEXT("Zombie")))
+		{
+			StatRowName = FName(*InferredRowName);
+		}
+	}
+
+	if (ZombieStatTable && !StatRowName.IsNone()) 
 	{
 		FZombieStatData* StatData = ZombieStatTable->FindRow<FZombieStatData>(StatRowName, TEXT(""));
 
@@ -76,6 +93,14 @@ void AZombie::BeginPlay()
 				GetCharacterMovement()->MaxWalkSpeed = StatData->MoveSpeed;
 			}
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s failed to find zombie stat row: %s"), *GetName(), *StatRowName.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s has no ZombieStatTable or StatRowName."), *GetName());
 	}
 
 	if (PawnSensing)
