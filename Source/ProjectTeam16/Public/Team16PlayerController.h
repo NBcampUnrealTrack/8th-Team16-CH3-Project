@@ -97,6 +97,7 @@ protected:
 	void ShowBossClearAnnouncement();
 	void FadeToClearResult();
 	void ShowClearResult();
+	bool EnsureFadeScreenWidgetClass();
 	void ApplyBossClearAnimation(float ElapsedTime) const;
 	void ApplyWidgetAnimationState(UWidget* TargetWidget, float Opacity, const FVector2D& Scale, const FVector2D& Translation, float Angle = 0.0f) const;
 

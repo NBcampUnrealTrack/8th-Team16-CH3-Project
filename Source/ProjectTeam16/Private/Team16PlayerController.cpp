@@ -104,12 +104,7 @@ void ATeam16PlayerController::TogglePauseMenu()
 
 void ATeam16PlayerController::PlayFadeOut()
 {
-	if (!FadeScreenWidgetClass)
-	{
-		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
-	}
-
-	if (!FadeScreenWidgetClass)
+	if (!EnsureFadeScreenWidgetClass())
 	{
 		return;
 	}
@@ -174,12 +169,7 @@ void ATeam16PlayerController::FadeToLevel(FName LevelName, const FString& Option
 		return;
 	}
 
-	if (!FadeScreenWidgetClass)
-	{
-		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
-	}
-
-	if (!FadeScreenWidgetClass)
+	if (!EnsureFadeScreenWidgetClass())
 	{
 		UWorld* World = GetWorld();
 		if (World)
@@ -553,7 +543,11 @@ void ATeam16PlayerController::ApplyBossClearAnimation(float ElapsedTime) const
 
 	UWidget* DarkOverlay = BossClearWidgetInstance->GetWidgetFromName(TEXT("DarkOverlay"));
 	UWidget* CenterLineGlow = BossClearWidgetInstance->GetWidgetFromName(TEXT("CenterLineGlow"));
-	UWidget* BossClearImage = BossClearWidgetInstance->GetWidgetFromName(TEXT("BossClearImage"));
+	UWidget* BossClearImage = BossClearWidgetInstance->GetWidgetFromName(TEXT("BossEliminatedImage"));
+	if (!BossClearImage)
+	{
+		BossClearImage = BossClearWidgetInstance->GetWidgetFromName(TEXT("BossClearImage"));
+	}
 
 	const float DarkOpacity = FMath::Clamp(ElapsedTime / 0.45f, 0.0f, 1.0f) * 0.82f;
 	ApplyWidgetAnimationState(DarkOverlay, DarkOpacity, FVector2D(1.0f, 1.0f), FVector2D::ZeroVector);
@@ -606,12 +600,7 @@ void ATeam16PlayerController::ApplyWidgetAnimationState(UWidget* TargetWidget, f
 
 void ATeam16PlayerController::FadeToClearResult()
 {
-	if (!FadeScreenWidgetClass)
-	{
-		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
-	}
-
-	if (!FadeScreenWidgetClass)
+	if (!EnsureFadeScreenWidgetClass())
 	{
 		ShowClearResult();
 		return;
@@ -678,6 +667,22 @@ bool ATeam16PlayerController::UpdateFadeToClearResult(float DeltaTime)
 
 	FadeToClearResultTickerHandle.Reset();
 	return false;
+}
+
+bool ATeam16PlayerController::EnsureFadeScreenWidgetClass()
+{
+	if (FadeScreenWidgetClass)
+	{
+		return true;
+	}
+
+	FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/HUD/WBP_FadeScreen.WBP_FadeScreen_C"));
+	if (!FadeScreenWidgetClass)
+	{
+		FadeScreenWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/UIAnimation/WBP_FadeScreen.WBP_FadeScreen_C"));
+	}
+
+	return FadeScreenWidgetClass != nullptr;
 }
 
 void ATeam16PlayerController::ShowClearResult()
