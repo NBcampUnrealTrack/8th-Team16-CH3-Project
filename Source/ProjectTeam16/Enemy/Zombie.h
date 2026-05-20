@@ -12,90 +12,65 @@ class UDataTable;
 UCLASS()
 class PROJECTTEAM16_API AZombie : public ACharacter
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
+    AZombie();
 
-	AZombie();
-
-	float GetCurrentHealth() const { return Health; }
-	float GetMaxHealth() const { return MaxHealth; }
+    float GetCurrentHealth() const { return Health; }
+    float GetMaxHealth() const { return MaxHealth; }
+    bool IsZombieDead() const { return bIsDead; }
+    float GetLastAttackTime() const { return LastAttackTime; }
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	FName StatRowName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+    FName StatRowName;
 
-	float Health;
-	float MaxHealth;
-	float DamageAmount;
-	float LastAttackTime;
-	int32 ExpAmount;
+    float Health;
+    float MaxHealth;
+    float DamageAmount;
+    float LastAttackTime;
+    int32 ExpAmount;
 
-	FTimerHandle AttackTimerHandle;
-	FTimerHandle SeeTimerHandle;
-	FTimerHandle ResetChaseTimerHandle;
+    FTimerHandle AttackTimerHandle;
+    FTimerHandle SeeTimerHandle;
+    FTimerHandle ResetChaseTimerHandle;
 
-	bool bIsDead = false;
+    bool bIsDead = false;
 
-	//탐지된 플레이어 정보저장
-	APawn* TargetPlayer = nullptr;
-	
-	// 공격 범위를 감지할 충돌 구체
-	UPROPERTY(VisibleAnywhere, Category = "AI")
-	TObjectPtr<USphereComponent> AttackRangeSphere;
+    UPROPERTY(BlueprintReadOnly, Category = "AI")
+    APawn* TargetPlayer = nullptr;
 
-	// 타격 사운드
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
-	TObjectPtr<USoundBase> HitSound;
+    UPROPERTY(VisibleAnywhere, Category = "AI")
+    TObjectPtr<USphereComponent> AttackRangeSphere;
 
-	// 타격 파티클 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
-	TObjectPtr<UParticleSystem> HitParticle;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+    TObjectPtr<USoundBase> HitSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	TObjectPtr<UDataTable> ZombieStatTable;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+    TObjectPtr<UParticleSystem> HitParticle;
 
-	virtual void BeginPlay() override;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+    TObjectPtr<UDataTable> ZombieStatTable;
 
-	virtual float TakeDamage(
-		float Damage,
-		struct FDamageEvent const& DamageEvent,
-		AController* EventInstigator,
-		AActor* DamageCauser
-	) override;
+    virtual void BeginPlay() override;
+    virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
-	// 충돌 시작/종료 시 호출될 함수들
-	UFUNCTION()
-	void OnAttackOverlapBegin(
-		UPrimitiveComponent* OverlappedComp,
-		AActor* OtherActor, 
-		UPrimitiveComponent* OtherComp, 
-		int32 OtherBodyIndex, 
-		bool bFromSweep, 
-		const FHitResult& SweepResult
-	);
+    UFUNCTION()
+    void OnAttackOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	UFUNCTION()
-	void OnAttackOverlapEnd(
-		UPrimitiveComponent* OverlappedComp, 
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex	
-	);
+    UFUNCTION()
+    void OnAttackOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	// 실제 공격 루프
-	void AttackLoop();
-	//플레이어 감지 함수
-	void CheckVisibility();
-	// 블루프린트의 ChasePlayer 커스텀 이벤트 역할을 할 함수
-	void ChasePlayer();
+    void AttackLoop();
+    void CheckVisibility();
+    void ChasePlayer();
+    void MoveToNearbyTarget();
+    void RetryChaseWithDelay();
 
-	// 블루프린트의 On Fail 분기 시 플레이어 주변 우회 처리를 맡을 함수
-	void MoveToNearbyTarget();
-
-	// 무한 루프 크래시를 방지하기 위해 0.1초 딜레이 후 ChasePlayer를 부를 헬퍼 함수
-	void RetryChaseWithDelay();
+    // 사망 후 월드 정리를 위한 지연 함수
+    void HandleDeathCleanup();
 
 public:
-	void SetEnrageMode(bool bIsEnraged, float SpeedMultiplier);
+    void SetEnrageMode(bool bIsEnraged, float SpeedMultiplier);
 };

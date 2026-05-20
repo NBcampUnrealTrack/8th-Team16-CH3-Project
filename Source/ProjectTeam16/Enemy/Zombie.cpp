@@ -1,358 +1,278 @@
 #include "ProjectTeam16/Enemy/Zombie.h"
-
 #include "AIController.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Team16PlayerController.h"
 #include "GameFramework/Pawn.h"
-#include "GameFramework\CharacterMovementComponent.h"
-#include "Components\CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "SpawnVolume.h"
-#include "Components/WidgetComponent.h"
-#include "ProjectTeam16/Data/ProjectDataStructs.h"
 #include "Engine/DamageEvents.h"
-#include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
-#include "AITypes.h"
+// 💡 빌드 에러 해결을 위해 추가된 필수 헤더 파일들
+#include "ProjectTeam16/Data/ProjectDataStructs.h"       // FZombieStatData 위치
+#include "Navigation/PathFollowingComponent.h"           // FPathFollowingRequestResult 위치
+#include "AITypes.h"                                     // FAIMoveRequest 위치
 
 AZombie::AZombie()
 {
-	PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = false;
 
-	AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
-	AttackRangeSphere->SetupAttachment(RootComponent);
+    AttackRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AttackRangeSphere"));
+    AttackRangeSphere->SetupAttachment(RootComponent);
 
-	UCapsuleComponent* Capsule = GetCapsuleComponent();
-	if (Capsule)
-	{
-		Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-		Capsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-		Capsule->SetGenerateOverlapEvents(false); // 캡슐 오버랩 끔
-		Capsule->bDynamicObstacle = false;
-	}
+    if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+    {
+        Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+        Capsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+        Capsule->SetGenerateOverlapEvents(false);
+        Capsule->bDynamicObstacle = false;
+    }
 
-	if (GetMesh())
-	{
-		GetMesh()->SetGenerateOverlapEvents(false); // 메시 오버랩 끔
-		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		GetMesh()->CastShadow = false;
-	}
+    if (GetMesh())
+    {
+        GetMesh()->SetGenerateOverlapEvents(false);
+        GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GetMesh()->CastShadow = false;
+    }
 
-	// 공격 범위 설정 (이 구체는 플레이어를 감지해야 하므로 오버랩 유지)
-	AttackRangeSphere->SetSphereRadius(150.0f);
-	AttackRangeSphere->SetGenerateOverlapEvents(true);
-	// 좀비끼리 무시해도 이 구체는 플레이어(Pawn)를 감지하도록 설정되어야 함
+    AttackRangeSphere->SetSphereRadius(150.0f);
+    AttackRangeSphere->SetGenerateOverlapEvents(true);
 
-	AttackRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlapBegin);
-	AttackRangeSphere->OnComponentEndOverlap.AddDynamic(this, &AZombie::OnAttackOverlapEnd);
+    AttackRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlapBegin);
+    AttackRangeSphere->OnComponentEndOverlap.AddDynamic(this, &AZombie::OnAttackOverlapEnd);
 }
-
 
 void AZombie::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	if (!ZombieStatTable)
-	{
-		ZombieStatTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/Data/DT_ZombieStat.DT_ZombieStat"));
-	}
+    if (!ZombieStatTable)
+    {
+        ZombieStatTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/Data/DT_ZombieStat.DT_ZombieStat"));
+    }
 
-	if (StatRowName.IsNone())
-	{
-		FString InferredRowName = GetClass() ? GetClass()->GetName() : GetName();
-		InferredRowName.RemoveFromEnd(TEXT("_C"));
-		InferredRowName.RemoveFromStart(TEXT("BP_"));
+    if (StatRowName.IsNone())
+    {
+        FString InferredRowName = GetClass() ? GetClass()->GetName() : GetName();
+        InferredRowName.RemoveFromEnd(TEXT("_C"));
+        InferredRowName.RemoveFromStart(TEXT("BP_"));
+        if (InferredRowName.StartsWith(TEXT("Zombie")))
+        {
+            StatRowName = FName(*InferredRowName);
+        }
+    }
 
-		if (InferredRowName.StartsWith(TEXT("Zombie")))
-		{
-			StatRowName = FName(*InferredRowName);
-		}
-	}
+    if (ZombieStatTable && !StatRowName.IsNone())
+    {
+        FZombieStatData* StatData = ZombieStatTable->FindRow<FZombieStatData>(StatRowName, TEXT(""));
+        if (StatData)
+        {
+            MaxHealth = StatData->MaxHealth;
+            Health = MaxHealth;
+            DamageAmount = StatData->Damage;
+            ExpAmount = StatData->ExpReward;
 
-	if (ZombieStatTable && !StatRowName.IsNone())
-	{
-		FZombieStatData* StatData = ZombieStatTable->FindRow<FZombieStatData>(StatRowName, TEXT(""));
-
-		if (StatData)
-		{
-			MaxHealth = StatData->MaxHealth;
-			Health = MaxHealth;
-			DamageAmount = StatData->Damage;
-			ExpAmount = StatData->ExpReward;
-
-			if (GetCharacterMovement())
-			{
-				GetCharacterMovement()->MaxWalkSpeed = StatData->MoveSpeed;
-			}
-		}
-	}
-	GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true);
+            if (GetCharacterMovement())
+            {
+                GetCharacterMovement()->MaxWalkSpeed = StatData->MoveSpeed;
+            }
+        }
+    }
+    GetWorldTimerManager().SetTimer(SeeTimerHandle, this, &AZombie::CheckVisibility, 0.2f, true);
 }
 
 float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (bIsDead)
-	{
-		return 0.0f;
-	}
+    if (bIsDead) return 0.0f;
 
-	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+    const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+    FVector ActualHitLocation = GetActorLocation();
 
-	FVector ActualHitLocation = GetActorLocation(); 
+    if (HitSound) UGameplayStatics::PlaySoundAtLocation(this, HitSound, ActualHitLocation);
+    if (HitParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticle, ActualHitLocation, FRotator::ZeroRotator);
 
-	if (HitSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, HitSound, ActualHitLocation);
-	}
+    Health = FMath::Clamp(Health - ActualDamage, 0.0f, MaxHealth);
 
-	// 파티클 
-	if (HitParticle)
-	{
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticle, ActualHitLocation, FRotator::ZeroRotator);
-	}
+    if (ActorHasTag(TEXT("Boss")))
+    {
+        if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+        {
+            PlayerController->UpdateHUDBossHealth(Health, MaxHealth);
+        }
+    }
 
-	Health -= ActualDamage;
-	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
+    if (Health <= 0.0f)
+    {
+        bIsDead = true;
 
-	if (ActorHasTag(TEXT("Boss")))
-	{
-		if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
-		{
-			PlayerController->UpdateHUDBossHealth(Health, MaxHealth);
-		}
-	}
+        // AI 및 타이머 즉시 정지 (몽타주 방해 금지)
+        GetWorldTimerManager().ClearTimer(AttackTimerHandle);
+        GetWorldTimerManager().ClearTimer(SeeTimerHandle);
+        GetWorldTimerManager().ClearTimer(ResetChaseTimerHandle);
 
-	if (Health <= 0.0f)
-	{
-		bIsDead = true;
-		const bool bWasBoss = ActorHasTag(TEXT("Boss"));
+        if (AAIController* AIC = Cast<AAIController>(GetController())) AIC->StopMovement();
+        if (GetCharacterMovement()) GetCharacterMovement()->DisableMovement();
 
-		// 월드에서 SpawnVolume을 찾아 카운트를 줄여줍니다.
-		AActor* FoundSpawner = UGameplayStatics::GetActorOfClass(GetWorld(), ASpawnVolume::StaticClass());
-		ASpawnVolume* Spawner = Cast<ASpawnVolume>(FoundSpawner);
-		if (Spawner)
-		{
-			Spawner->OnZombieDestroyed();
-		}
+        const bool bWasBoss = ActorHasTag(TEXT("Boss"));
 
-		// 마지막 공격자가 플레이어라면 킬 카운트와 경험치 보상을 HUD에 반영합니다.
-		ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(EventInstigator);
-		if (!PlayerController && DamageCauser)
-		{
-			if (APawn* OwnerPawn = Cast<APawn>(DamageCauser->GetOwner()))
-			{
-				PlayerController = Cast<ATeam16PlayerController>(OwnerPawn->GetController());
-			}
-		}
+        AActor* FoundSpawner = UGameplayStatics::GetActorOfClass(GetWorld(), ASpawnVolume::StaticClass());
+        if (ASpawnVolume* Spawner = Cast<ASpawnVolume>(FoundSpawner))
+        {
+            Spawner->OnZombieDestroyed();
+        }
 
-		// 공격자 컨트롤러를 찾았을 때만 킬 카운트와 경험치를 지급합니다.
-		if (PlayerController)
-		{
-			PlayerController->RegisterZombieKill(ExpAmount);
-		}
+        ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(EventInstigator);
+        if (!PlayerController && DamageCauser)
+        {
+            if (APawn* OwnerPawn = Cast<APawn>(DamageCauser->GetOwner()))
+            {
+                PlayerController = Cast<ATeam16PlayerController>(OwnerPawn->GetController());
+            }
+        }
 
-		if (bWasBoss)
-		{
-			if (!PlayerController)
-			{
-				PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-			}
+        if (PlayerController) PlayerController->RegisterZombieKill(ExpAmount);
 
-			if (PlayerController)
-			{
-				PlayerController->StartBossClearSequence();
-			}
-		}
-		
-		Destroy();
-	}
+        if (bWasBoss)
+        {
+            if (!PlayerController) PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+            if (PlayerController) PlayerController->StartBossClearSequence();
+        }
 
-	return ActualDamage;
+        // 즉시 Destroy하지 않고, 애니메이션이 재생될 최소 1.0초의 유예를 준 뒤 삭제
+        GetWorldTimerManager().SetTimer(ResetChaseTimerHandle, this, &AZombie::HandleDeathCleanup, 1.0f, false);
+    }
+
+    return ActualDamage;
 }
 
-void AZombie::OnAttackOverlapBegin(
-	UPrimitiveComponent* OverlappedComp,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult
-)
+void AZombie::HandleDeathCleanup()
 {
-	if (OtherActor && OtherActor == TargetPlayer)
-	{
-		// 이미 공격 타이머가 돌고 있다면 새로 만들지 않음
-		if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
-		{
-			AttackLoop();
-			GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
-		}
-	}
+    Destroy();
 }
 
-void AZombie::OnAttackOverlapEnd(
-	UPrimitiveComponent* OverlappedComp,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex
-)
+void AZombie::OnAttackOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (OtherActor && OtherActor == TargetPlayer)
-	{
-		GetWorldTimerManager().ClearTimer(AttackTimerHandle);
+    if (bIsDead) return;
+    if (OtherActor && OtherActor == TargetPlayer)
+    {
+        if (!GetWorldTimerManager().IsTimerActive(AttackTimerHandle))
+        {
+            AttackLoop();
+            GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AZombie::AttackLoop, 1.5f, true, 1.5f);
+        }
+    }
+}
 
-		if (IsValid(TargetPlayer))
-		{
-			ChasePlayer();
-		}
-	}
+void AZombie::OnAttackOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    if (bIsDead) return;
+    if (OtherActor && OtherActor == TargetPlayer)
+    {
+        GetWorldTimerManager().ClearTimer(AttackTimerHandle);
+        if (IsValid(TargetPlayer)) ChasePlayer();
+    }
 }
 
 void AZombie::AttackLoop()
 {
-	if (IsValid(TargetPlayer))
-	{
-		float CurrentTime = GetWorld()->GetTimeSeconds();
+    if (bIsDead || !IsValid(TargetPlayer)) return;
 
-		// 마지막 공격으로부터 1.5초가 지났을 때만 실제 데미지 적용
-		if (CurrentTime - LastAttackTime >= 1.5f)
-		{
-			UGameplayStatics::ApplyDamage(TargetPlayer, DamageAmount, GetController(), this, nullptr);
-			GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Zombie Attack!"));
-
-			LastAttackTime = CurrentTime; // 마지막 공격 시간 갱신
-		}
-	}
+    float CurrentTime = GetWorld()->GetTimeSeconds();
+    if (CurrentTime - LastAttackTime >= 1.5f)
+    {
+        UGameplayStatics::ApplyDamage(TargetPlayer, DamageAmount, GetController(), this, nullptr);
+        GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Zombie Attack!"));
+        LastAttackTime = CurrentTime;
+    }
 }
 
 void AZombie::CheckVisibility()
 {
-	APlayerController* PC = Cast<APlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-	if (!PC) return;
+    if (bIsDead) return;
+    APlayerController* PC = Cast<APlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+    if (!PC) return;
 
-	FVector CameraLocation;
-	FRotator CameraRotation;
-	PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
+    FVector CameraLocation; FRotator CameraRotation;
+    PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
 
-	FVector CameraForward = CameraRotation.Vector();
-	FVector ToZombie = (GetActorLocation() - CameraLocation).GetSafeNormal();
+    FVector CameraForward = CameraRotation.Vector();
+    FVector ToZombie = (GetActorLocation() - CameraLocation).GetSafeNormal();
 
-	float DotProduct = FVector::DotProduct(CameraForward, ToZombie);
-	float Angle = FMath::RadiansToDegrees(FMath::Acos(DotProduct));
-	float Distance = FVector::Dist(GetActorLocation(), CameraLocation);
+    float DotProduct = FVector::DotProduct(CameraForward, ToZombie);
+    float Angle = FMath::RadiansToDegrees(FMath::Acos(DotProduct));
+    float Distance = FVector::Dist(GetActorLocation(), CameraLocation);
 
-	// 시야각 80도 이내거나 거리가 400 이내일 때 플레이어 포착
-	if (Angle < 80.0f || Distance < 400.0f)
-	{
-		TargetPlayer = PC->GetPawn();
-
-		// 중복 호출하지 않도록 방어하고, 처음 발견했을 때만 추격
-		if (TargetPlayer && !GetWorldTimerManager().IsTimerActive(ResetChaseTimerHandle))
-		{
-			ChasePlayer();
-		}
-	}
+    if (Angle < 80.0f || Distance < 400.0f)
+    {
+        TargetPlayer = PC->GetPawn();
+        if (TargetPlayer && !GetWorldTimerManager().IsTimerActive(ResetChaseTimerHandle))
+        {
+            ChasePlayer();
+        }
+    }
 }
-
 
 void AZombie::SetEnrageMode(bool bIsEnraged, float SpeedMultiplier)
 {
-	if (GetCharacterMovement())
-	{
-		if (bIsEnraged)
-		{
-			GetCharacterMovement()->MaxWalkSpeed *= SpeedMultiplier;
-		}
-		else
-		{
-			GetCharacterMovement()->MaxWalkSpeed /= SpeedMultiplier;
-		}
-	}
-
-	if (bIsEnraged)
-	{
-		// 시각적 피드백:메쉬 색을 붉게 바꾸거나 이펙트 부착
-	}
-	else
-	{
-		// 원래 색으로 복구
-	}
+    if (bIsDead || !GetCharacterMovement()) return;
+    if (bIsEnraged) GetCharacterMovement()->MaxWalkSpeed *= SpeedMultiplier;
+    else GetCharacterMovement()->MaxWalkSpeed /= SpeedMultiplier;
 }
 
 void AZombie::ChasePlayer()
 {
-	if (!TargetPlayer || bIsDead) return;
+    if (!TargetPlayer || bIsDead) return;
+    AAIController* AIController = Cast<AAIController>(GetController());
+    if (!AIController) return;
 
-	AAIController* AIController = Cast<AAIController>(GetController());
-	if (!AIController) return;
+    FAIMoveRequest MoveRequest;
+    MoveRequest.SetGoalActor(TargetPlayer);
+    MoveRequest.SetAcceptanceRadius(60.0f);
+    MoveRequest.SetAllowPartialPath(true);
 
-	FAIMoveRequest MoveRequest;
-	MoveRequest.SetGoalActor(TargetPlayer);
-	MoveRequest.SetAcceptanceRadius(60.0f); 
-	MoveRequest.SetAllowPartialPath(true);
+    // 💡 언리얼 엔진 5 공식 규격에 맞춘 깔끔하고 정확한 결과 판정
+    FPathFollowingRequestResult Result = AIController->MoveTo(MoveRequest);
 
-	FPathFollowingRequestResult Result = AIController->MoveTo(MoveRequest);
-
-	// 추적 성공 
-	if (Result.Code == EPathFollowingRequestResult::AlreadyAtGoal)
-	{
-		RetryChaseWithDelay();
-	}
-	// 추적 실패
-	else if (Result.Code == EPathFollowingRequestResult::Failed)
-	{
-		MoveToNearbyTarget();
-	}
+    // 이미 목표(플레이어) 위치에 도달해 있는 상태인 경우
+    if (Result.Code == EPathFollowingRequestResult::AlreadyAtGoal)
+    {
+        RetryChaseWithDelay();
+    }
+    // 장애물이나 네비메시 단절 등으로 인해 추적 명령 자체가 실패한 경우
+    else if (Result.Code == EPathFollowingRequestResult::Failed)
+    {
+        MoveToNearbyTarget();
+    }
 }
+
+
 
 void AZombie::MoveToNearbyTarget()
 {
-	if (!TargetPlayer || bIsDead) return;
+    if (!TargetPlayer || bIsDead) return;
+    AAIController* AIController = Cast<AAIController>(GetController());
+    if (!AIController) return;
 
-	AAIController* AIController = Cast<AAIController>(GetController());
-	if (!AIController ) return;
-
-	// 플레이어 좌표 확보
-	FVector PlayerLocation = TargetPlayer->GetActorLocation();
-	FVector RandomReachableLocation;
-
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	if (NavSys)
-	{
-		FNavLocation PredictedLocation;
-		// 반지름 350.0f 내에서 이동 가능한 무작위 위치 찾기
-		bool bFoundPoint = NavSys->GetRandomReachablePointInRadius(PlayerLocation, 350.0f, PredictedLocation);
-
-		if (bFoundPoint)
-		{
-			RandomReachableLocation = PredictedLocation.Location; // 실제 좌표 추출
-
-			FAIMoveRequest MoveRequest;
-			MoveRequest.SetGoalLocation(RandomReachableLocation);
-			MoveRequest.SetAcceptanceRadius(60.0f);
-			MoveRequest.SetAllowPartialPath(true);
-
-			AIController->MoveTo(MoveRequest);
-		}
-	}
-
-	// 성공 여부와 상관없이 무한 루프 방지용 딜레이 후 복귀
-	RetryChaseWithDelay();
+    FVector PlayerLocation = TargetPlayer->GetActorLocation();
+    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (NavSys)
+    {
+        FNavLocation PredictedLocation;
+        if (NavSys->GetRandomReachablePointInRadius(PlayerLocation, 350.0f, PredictedLocation))
+        {
+            FAIMoveRequest MoveRequest;
+            MoveRequest.SetGoalLocation(PredictedLocation.Location);
+            MoveRequest.SetAcceptanceRadius(60.0f);
+            MoveRequest.SetAllowPartialPath(true);
+            AIController->MoveTo(MoveRequest);
+        }
+    }
+    RetryChaseWithDelay();
 }
 
 void AZombie::RetryChaseWithDelay()
 {
-	if (bIsDead) return;
-
-	// 딜레이로 스택 오버플로우나 렉 방지
-	GetWorldTimerManager().SetTimer(
-		ResetChaseTimerHandle,
-		this,
-		&AZombie::ChasePlayer,
-		0.1f,
-		false
-	);
+    if (bIsDead) return;
+    GetWorldTimerManager().SetTimer(ResetChaseTimerHandle, this, &AZombie::ChasePlayer, 0.1f, false);
 }
-
-
-
