@@ -274,6 +274,8 @@ void ATeam16PlayerController::ShowInGameHUD()
 
 	HUDWidgetInstance->Show();
 	HUDWidgetInstance->HideBossHealth();
+	HUDWidgetInstance->ShowMiniMap();
+	TotalDamageTaken = 0.0f;
 
 	
 	if (ASP_Character* PlayerCharacter = Cast<ASP_Character>(GetPawn()))
@@ -354,6 +356,7 @@ void ATeam16PlayerController::ShowHUDBossHealth(const FString& BossName, float C
 
 		HUDWidgetInstance->Show();
 		HUDWidgetInstance->HideTime();
+		HUDWidgetInstance->HideMiniMap();
 		HUDWidgetInstance->ShowBossHealth(BossName, CurrentHealth, MaxHealth);
 	}
 }
@@ -389,6 +392,16 @@ void ATeam16PlayerController::RegisterZombieKill(int32 ExpReward)
 
 		PlayerCharacter->AddCube(1);
 	}
+}
+
+void ATeam16PlayerController::RegisterDamageTaken(float DamageAmount)
+{
+	if (DamageAmount <= 0.0f)
+	{
+		return;
+	}
+
+	TotalDamageTaken += DamageAmount;
 }
 
 void ATeam16PlayerController::ShowGameOver()
@@ -731,8 +744,11 @@ void ATeam16PlayerController::ShowClearResult()
 	}
 
 	ClearResultWidgetInstance->Show();
-	ClearResultWidgetInstance->UpdateScore(ZombieKillCount);
-	ClearResultWidgetInstance->UpdateClearTime(FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds));
+	ClearResultWidgetInstance->UpdateClearStats(
+		FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds),
+		ZombieKillCount,
+		TotalDamageTaken
+	);
 
 	UGameplayStatics::SetGamePaused(World, true);
 	bShowMouseCursor = true;

@@ -164,7 +164,15 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	}
 
 	// 피해를 받은 뒤 HUD를 갱신하고, 체력이 0이면 게임오버 UI를 띄웁니다.
+	const float PreviousHealth = CurrentHealth;
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth);
+	const float AppliedDamage = PreviousHealth - CurrentHealth;
+
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->RegisterDamageTaken(AppliedDamage);
+	}
+
 	SyncHUDValues();
 
 	if (CurrentHealth <= 0.0f && !bIsDead)

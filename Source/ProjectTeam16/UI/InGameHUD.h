@@ -46,6 +46,12 @@ public:
 	void HideTime();
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowMiniMap();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void HideMiniMap();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
@@ -77,6 +83,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TimeText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> MiniMap;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> BossHealthBox;

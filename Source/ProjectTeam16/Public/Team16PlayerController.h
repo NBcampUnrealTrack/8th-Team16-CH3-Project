@@ -67,6 +67,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void RegisterZombieKill(int32 ExpReward);
 
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void RegisterDamageTaken(float DamageAmount);
+
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowGameOver();
 
@@ -176,6 +179,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")
 	int32 ZombieKillCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")
+	float TotalDamageTaken = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Timer", meta = (ClampMin = "0", UIMin = "0"))
 	int32 GameTimerStartSeconds = 600;
