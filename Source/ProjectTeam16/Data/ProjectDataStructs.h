@@ -52,10 +52,19 @@ struct FBoxDropData : public FTableRowBase
 	float DropChance; // 드롭 확률 (예: 0.1 이면 10%)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString ItemName; // 아이템 이름 
+	FString ItemName; 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HealingAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AddMaxHPAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AddAttackAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AddStaminaAmount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 ExpAmount;

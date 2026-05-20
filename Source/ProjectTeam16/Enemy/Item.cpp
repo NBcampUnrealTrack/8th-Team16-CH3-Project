@@ -2,6 +2,7 @@
 #include "Components\SphereComponent.h"
 #include "ProjectTeam16/Character/SP_Character.h"
 #include "ProjectTeam16/Data/ProjectDataStructs.h"
+#include "ProjectTeam16/UI/LevelUpWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 AItem::AItem()
@@ -21,6 +22,21 @@ void AItem::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    if (ItemDataTable && !ItemRowName.IsNone())
+    {
+       
+        static const FString ContextString(TEXT("Item Data Context"));
+        FBoxDropData* RowData = ItemDataTable->FindRow<FBoxDropData>(ItemRowName, ContextString);
+
+        if (RowData)
+        {
+            Heal = RowData->HealingAmount;      
+            MaxHP = RowData->AddMaxHPAmount;    
+            ATK = RowData->AddAttackAmount;      
+            Stamina = RowData->AddStaminaAmount;  
+            Exp = RowData->ExpAmount;            
+        }
+    }
 }
 
 void AItem::Tick(float DeltaTime)
@@ -42,19 +58,72 @@ void AItem::Tick(float DeltaTime)
             ASP_Character* Player = Cast<ASP_Character>(TargetPlayer);
             if (Player)
             {
+                UE_LOG(LogTemp, Error, TEXT("==== [ItemBox] ITEM TOUCHED DATA INSPECTOR ===="));
+                UE_LOG(LogTemp, Error, TEXT("Inside Actor Variables -> Heal: %f, MaxHP: %f, ATK: %f, Stamina: %f"), Heal, MaxHP, ATK, Stamina);
+                UE_LOG(LogTemp, Error, TEXT("==============================================="));
+                const int32 MaxLevelLimit = 8;
+
                 if (Heal > 0.0f)
                 {
-                    // Player->AddHealth(Heal);
-                    UE_LOG(LogTemp, Warning, TEXT("Heal HP"));
+                    Player->CurrentHealth = FMath::Min(Player->CurrentHealth + Heal, Player->MaxHealth);
+                    Player->SyncHUDValues(); 
+
+                    UE_LOG(LogTemp, Warning, TEXT("[ItemBox] Heal HP. Current: %f"), Player->CurrentHealth);
+                }
+
+                if (MaxHP > 0.0f)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[ItemBox] MaxHP Item Touched! Current Level: %d, Current MaxHealth: %f"), Player->MaxHealthLevel, Player->MaxHealth);
+                    if (Player->MaxHealthLevel < MaxLevelLimit)
+                    {
+                        Player->MaxHealthLevel++;
+                        Player->MaxHealth += MaxHP;
+                        Player->CurrentHealth += MaxHP;
+                        Player->SyncHUDValues();
+
+                        UE_LOG(LogTemp, Warning, TEXT("[ItemBox] MaxHP UP! Level: %d, MaxHP: %f"),
+                            Player->MaxHealthLevel, Player->MaxHealth);
+                    }
+                }
+
+                if (ATK > 0.0f)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[ItemBox] ATK Item Touched! Current Level: %d, Current AttackPower: %f"), Player->AttackPowerLevel, Player->AttackPower);
+                    if (Player->AttackPowerLevel < MaxLevelLimit)
+                    {
+                        Player->AttackPowerLevel++;
+                        Player->AttackPower *= ATK;
+                        Player->SyncHUDValues();
+
+                        UE_LOG(LogTemp, Warning, TEXT("[ItemBox] Attack UP! Level: %d, ATK: %f"),
+                            Player->AttackPowerLevel, Player->AttackPower);
+                    }
+                }
+
+                if (Stamina > 0.0f)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[ItemBox] Stamina Item Touched! Current Level: %d, Current MaxStamina: %f"), Player->MaxStaminaLevel, Player->MaxStamina);
+                    if (Player->MaxStaminaLevel < MaxLevelLimit)
+                    {
+                        Player->MaxStaminaLevel++;
+
+                        Player->MaxStamina += Stamina;
+                        Player->CurrentStamina += Stamina;
+
+                        Player->SyncHUDValues();
+
+                        UE_LOG(LogTemp, Warning, TEXT("[ItemBox] Stamina UP! Level: %d, MaxStamina: %f"),
+                            Player->MaxStaminaLevel, Player->MaxStamina);
+                    }
                 }
 
                 if (Exp > 0)
                 {
-                    //Player->AddExp(Exp);
-                    UE_LOG(LogTemp, Warning, TEXT("Get Exp"));
-                };
+                    // Player->AddExp(Exp);
+                    UE_LOG(LogTemp, Warning, TEXT("Get Exp : %d"), Exp);
+                }
             }
-           
+
             if (PickupSound)
             {
                 UGameplayStatics::PlaySoundAtLocation(this, PickupSound, GetActorLocation());

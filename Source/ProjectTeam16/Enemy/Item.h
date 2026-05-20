@@ -17,8 +17,16 @@ public:
 	AItem();
 
 	float Heal;
+	float MaxHP;
+	float ATK;
+	float Stamina;
 	int32 Exp;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+	UDataTable* ItemDataTable;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+	FName ItemRowName;
 protected:
 	
 	virtual void BeginPlay() override;
