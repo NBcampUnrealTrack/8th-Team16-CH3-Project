@@ -99,7 +99,7 @@ struct FGunStats : public FTableRowBase
 
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
-    UStaticMesh* WeaponMesh; // 무기 외형
+    UStaticMesh* WeaponMesh = nullptr; // 무기 외형
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Effect")
     class UNiagaraSystem* MuzzleFlash; // 총구 화염 이펙트

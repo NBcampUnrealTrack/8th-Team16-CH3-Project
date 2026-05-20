@@ -39,8 +39,11 @@ public:
 	float AttackPower = 1.0f;
 
 	// bIsRightHand가 true면 오른손 무기, false면 왼손 무기를 NewType으로 업그레이드합니다.
+	//UFUNCTION(BlueprintCallable, Category = "Weapon")
+	//void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
+	void EnhanceHandWeapon(bool bIsRightHand); //추가 
 
 	// 아이템이 호출할 무기 능력 실시간 갱신 함수
 	void ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand);
@@ -63,6 +66,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USceneComponent* RightHandWeaponRoot;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	USkeletalMeshComponent* Mesh1P;
 #pragma endregion
 
 #pragma region status
@@ -112,9 +117,22 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	FWeaponData RightWeaponData;
 
+	// 캐릭터 블루프린트에서 사격 애니메이션 몽타주 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* LeftHandFireMontage; // LeftArmSlot 지정 필수
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* RightHandFireMontage; // RightArmSlot 지정 필수
+
 private:
 	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
 	void SpawnOrUpdateHandWeapon(bool bIsRightHand);
+
+	// 스폰된 무기 액터를 애니메이션(손 뼈 소켓)에 부착시키는 함수
+	void AttachWeaponToHand(class ASP_WeaponBase* WeaponToAttach, bool bIsRightHand);
+
+	const FName LeftHandSocketName = FName("Pistol_Socket");
+	const FName RightHandSocketName = FName("Shotgun_Socket");
 #pragma endregion	
 
 
@@ -131,6 +149,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
 	class UInputAction* RightFireAction; // 마우스 오른쪽 클릭용
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void FireLeftHand();
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void FireRightHand();
 
 	// 이동
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -173,8 +195,7 @@ protected:
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
 
-	void FireLeftHand();
-	void FireRightHand();
+	
 
 	public:
 		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
