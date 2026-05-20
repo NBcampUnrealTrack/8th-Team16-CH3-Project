@@ -38,17 +38,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
 	float AttackPower = 1.0f;
 
-	/*int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const
-	{
-		for (const FWeaponData& W : OwnedWeapons)
-			if (W.WeaponType == WeaponType) return W.EnhanceLevel;
-		return -1;
-	}*/
-
-
 	// bIsRightHand가 true면 오른손 무기, false면 왼손 무기를 NewType으로 업그레이드합니다.
+	//UFUNCTION(BlueprintCallable, Category = "Weapon")
+	//void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
+	void EnhanceHandWeapon(bool bIsRightHand); //추가 
 
 	// 아이템이 호출할 무기 능력 실시간 갱신 함수
 	void ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand);
@@ -71,6 +66,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USceneComponent* RightHandWeaponRoot;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	USkeletalMeshComponent* Mesh1P;
 #pragma endregion
 
 #pragma region status
@@ -120,9 +117,22 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	FWeaponData RightWeaponData;
 
+	// 캐릭터 블루프린트에서 사격 애니메이션 몽타주 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* LeftHandFireMontage; // LeftArmSlot 지정 필수
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* RightHandFireMontage; // RightArmSlot 지정 필수
+
 private:
 	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
 	void SpawnOrUpdateHandWeapon(bool bIsRightHand);
+
+	// 스폰된 무기 액터를 애니메이션(손 뼈 소켓)에 부착시키는 함수
+	void AttachWeaponToHand(class ASP_WeaponBase* WeaponToAttach, bool bIsRightHand);
+
+	const FName LeftHandSocketName = FName("Pistol_Socket");
+	const FName RightHandSocketName = FName("Shotgun_Socket");
 #pragma endregion	
 
 
@@ -139,6 +149,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
 	class UInputAction* RightFireAction; // 마우스 오른쪽 클릭용
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void FireLeftHand();
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void FireRightHand();
 
 	// 이동
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -164,12 +178,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float SprintSpeed = 1000.0f;
 
-	// 스테미너 설정
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
-	float MaxStamina = 100.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Stamina")   //UI에 표기 가능
-		float CurrentStamina = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // 초당 소모량
@@ -187,8 +195,7 @@ protected:
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
 
-	void FireLeftHand();
-	void FireRightHand();
+	
 
 	public:
 		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
@@ -238,5 +245,32 @@ protected:
 		// 큐브 옵션 초기화
 		void ResetCubeOptions();
 
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 MaxHealthLevel = 0;
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 AttackPowerLevel = 0;
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 MaxStaminaLevel = 0;
+
+		const int32 MAX_UPGRADE_LEVEL = 8; // 최대 강화 수치 정의
+
+		// 💡 특정 무기를 가지고 있고, 해당 무기의 강화 수치를 반환하는 헬퍼 함수
+		int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const;
+		bool HasWeapon(EWeaponType WeaponType) const;
+
+		// 강화 및 조합 함수
+		void EnhanceWeapon(EWeaponType WeaponType);
+		void CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon);
+
+		// 💡 조합 가능 여부 체크 함수 (레벨업 UI 풀 생성 시 사용)
+		bool CanEvolvePistol() const;
+		bool CanEvolveShotgun() const;
+
+		// 스테미너 설정
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
+		float MaxStamina = 100.0f;
+
+		UPROPERTY(BlueprintReadOnly, Category = "Stamina")
+		float CurrentStamina = 100.0f;
 #pragma endregion
 };

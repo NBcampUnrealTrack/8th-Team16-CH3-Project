@@ -18,10 +18,22 @@ ASP_Character::ASP_Character()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	//마우스 입력 축 권한 고정
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationRoll = false;
+	bUseControllerRotationYaw = true;
+
 	// 1인칭 카메라와 무기 배치 기준점을 캐릭터에 붙입니다.
 	FPSCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FPSCamera"));
 	FPSCamera->SetupAttachment(GetRootComponent());
 	FPSCamera->bUsePawnControlRotation = true;
+
+	// [질문자님 최적화 반영] 불필요한 3인칭 기본 메쉬 숨김 및 콜리전 해제
+	if (GetMesh())
+	{
+		GetMesh()->SetHiddenInGame(true);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
 	// 왼손 무기 배치 기준점 생성 및 카메라에 첨부
 	LeftHandWeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("LeftHandWeaponRoot"));
@@ -55,6 +67,48 @@ void ASP_Character::BeginPlay()
 {
 	Super::BeginPlay();
 
+	TArray<USkeletalMeshComponent*> SkeletalMeshes;
+	GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
+
+	for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
+	{
+		if (MeshComp)
+		{
+			FString CompName = MeshComp->GetName();
+			if (CompName.Contains(TEXT("CharacterMesh1")) || CompName.Contains(TEXT("Mesh1P")))
+			{
+				Mesh1P = MeshComp;
+				UE_LOG(LogTemp, Warning, TEXT("1인칭 팔 메시이름: %s"), *CompName);
+				break;
+			}
+		}
+	}
+
+	if (!Mesh1P && SkeletalMeshes.Num() > 1)
+	{
+		for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
+		{
+			if (MeshComp && MeshComp != GetMesh())
+			{
+				Mesh1P = MeshComp;
+				UE_LOG(LogTemp, Warning, TEXT("1인칭 팔 강제 지정 이름: %s"), *MeshComp->GetName());
+				break;
+			}
+		}
+	}
+
+	if (Mesh1P)
+	{
+		Mesh1P->SetHiddenInGame(false);
+		Mesh1P->SetVisibility(true);
+		Mesh1P->SetOnlyOwnerSee(true);
+		Mesh1P->CastShadow = false;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Fatal, TEXT("블루프린트에서 1인칭 컴포넌트를 찾지 못했습니다"));
+	}
+
 	CurrentHealth = MaxHealth;
 	CurrentStamina = MaxStamina;
 	SyncHUDValues();
@@ -69,8 +123,10 @@ void ASP_Character::BeginPlay()
 	}
 
 	// 게임 시작 시 기본 권총을 왼손 오른손에 샷건 각각 지급
-	LeftWeaponData = FWeaponData(EWeaponType::Standard);
-	RightWeaponData = FWeaponData(EWeaponType::BasicShotgun);
+	LeftWeaponData.WeaponType = EWeaponType::Pistol;
+	LeftWeaponData.EnhanceLevel = 1;
+RightWeaponData.WeaponType = EWeaponType::Shotgun;
+    RightWeaponData.EnhanceLevel = 1;
 
 	SpawnOrUpdateHandWeapon(false); // 왼손 스폰
 	SpawnOrUpdateHandWeapon(true);  // 오른손 스폰
@@ -108,7 +164,15 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	}
 
 	// 피해를 받은 뒤 HUD를 갱신하고, 체력이 0이면 게임오버 UI를 띄웁니다.
+	const float PreviousHealth = CurrentHealth;
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth);
+	const float AppliedDamage = PreviousHealth - CurrentHealth;
+
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->RegisterDamageTaken(AppliedDamage);
+	}
+
 	SyncHUDValues();
 
 	if (CurrentHealth <= 0.0f && !bIsDead)
@@ -125,6 +189,7 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 }
 
 void ASP_Character::SyncHUDValues()
+
 {
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 	{
@@ -166,18 +231,24 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 	SyncHUDValues();
 
 	// 레벨업 UI 실행 (주석 해제 및 함수명 확인)
-	/*if (bLeveledUp)
+	if (bLeveledUp)
 	{
 		if (ATeam16PlayerController* PC = Cast<ATeam16PlayerController>(GetController()))
-		{
+		{	
 			// 헤더파일 확인 결과 OpenLevelUpUI가 정의되어 있습니다.
 			PC->OpenLevelUpUI();
 		}
-	}*/
+	}
 }
 
+void ASP_Character::EnhanceHandWeapon(bool bIsRightHand)
+{
+	// [헤더 매칭용 통합 추가] 인게임 강화 트리거 연결 베이스 구현
+	FWeaponData& TargetData = bIsRightHand ? RightWeaponData : LeftWeaponData;
+	EnhanceWeapon(TargetData.WeaponType);
+}
 
-
+/*
 void ASP_Character::UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand)
 {
 
@@ -191,6 +262,7 @@ void ASP_Character::UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand)
 
 	SpawnOrUpdateHandWeapon(bIsRightHand);
 }
+*/
 
 void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 {
@@ -223,6 +295,7 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 			NewWeapon->AttachToComponent(AttachRoot, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 			*TargetWeaponPtr = NewWeapon;
 
+			AttachWeaponToHand(NewWeapon, bIsRightHand);
 			if (GunDataTable)
 			{
 				FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)TargetData.WeaponType);
@@ -260,8 +333,46 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 	}
 }
 
+
+void ASP_Character::AttachWeaponToHand(ASP_WeaponBase* WeaponToAttach, bool bIsRightHand)
+{
+	// [질문자님 자산 완벽 복구] 1인칭 팔 뼈 소켓에 결합 및 소유자 전용 시야 제어 로직
+	if (!WeaponToAttach) return;
+
+	if (!Mesh1P)
+	{
+		TArray<USkeletalMeshComponent*> SkeletalMeshes;
+		GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
+		for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
+		{
+			if (MeshComp && MeshComp != GetMesh())
+			{
+				Mesh1P = MeshComp;
+				break;
+			}
+		}
+	}
+
+	if (!Mesh1P)
+	{
+		UE_LOG(LogTemp, Error, TEXT("1인칭 팔 메쉬 획득 실패"));
+		return;
+	}
+
+	FName TargetSocket = bIsRightHand ? RightHandSocketName : LeftHandSocketName;
+	FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, false);
+
+	WeaponToAttach->AttachToComponent(Mesh1P, AttachRules, TargetSocket);
+
+	if (UPrimitiveComponent* WeaponRoot = Cast<UPrimitiveComponent>(WeaponToAttach->GetRootComponent()))
+	{
+		WeaponRoot->SetOnlyOwnerSee(true);
+	}
+}
+
 void ASP_Character::ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand)
 {
+
 	//손에 맞는 데이터 및 무기 액터 포인터 가져오기
 	FWeaponData& TargetData = bIsRightHand ? RightWeaponData : LeftWeaponData;
 	ASP_WeaponBase* TargetWeapon = bIsRightHand ? RightHandWeapon : LeftHandWeapon;
@@ -324,10 +435,10 @@ void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASP_Character::SprintEnd);
 
 		if (LeftFireAction)
-			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireLeftHand);
+			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Started, this, &ASP_Character::FireLeftHand);
 
 		if (RightFireAction)
-			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireRightHand);
+			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Started, this, &ASP_Character::FireRightHand);
 
 	}
 }
@@ -336,33 +447,53 @@ void ASP_Character::FireLeftHand()
 {
 	if (bIsDead || !LeftHandWeapon) return;
 
-	//왼손 무기 로컬 상대 위치
+	// 사격 명령 전달
+	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
+
+	// 큐브 공속 스탯 연동 사격 애니메이션 몽타주 배속 구동 로직
+	if (UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance())
+	{
+		if (LeftHandFireMontage && !AnimInstance->Montage_IsPlaying(LeftHandFireMontage))
+		{
+			float AnimPlayRate = 1.0f + (CubeFireRateBonus / 100.0f);
+			AnimInstance->Montage_Play(LeftHandFireMontage, AnimPlayRate);
+		}
+	}
+
+	//고정형 상대위치 반동 주입
 	USceneComponent* WeaponRootComp = LeftHandWeapon->GetRootComponent();
 	if (WeaponRootComp)
 	{
-		FVector CurrentLoc = WeaponRootComp->GetRelativeLocation();
-		// 로컬 X축(앞뒤) 방향으로만 반동을 주므로 안전합니다.
-		WeaponRootComp->SetRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+		WeaponRootComp->SetRelativeLocation(FVector(-RecoilIntensity, 0.0f, 0.0f));
 	}
 
-	// 사격 명령 전달
-	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
 }
 
 void ASP_Character::FireRightHand()
 {
 	if (bIsDead || !RightHandWeapon) return;
 
-	//오른손 무기 동일하게 컴포넌트 로컬 상대 위치 제어.
+	// 사격 명령 전달
+	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
+
+	
+	// 오른손 무기 사격 애니메이션 몽타주 배속 구동 로직
+	if (UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance())
+	{
+		if (RightHandFireMontage && !AnimInstance->Montage_IsPlaying(RightHandFireMontage))
+		{
+			float AnimPlayRate = 1.0f + (CubeFireRateBonus / 100.0f);
+			AnimInstance->Montage_Play(RightHandFireMontage, AnimPlayRate);
+		}
+	}
+
+	//오른손 무기 고정형 로컬 상대위치 제어 반동 주입
 	USceneComponent* WeaponRootComp = RightHandWeapon->GetRootComponent();
 	if (WeaponRootComp)
 	{
-		FVector CurrentLoc = WeaponRootComp->GetRelativeLocation();
-		WeaponRootComp->SetRelativeLocation(CurrentLoc - FVector(RecoilIntensity, 0.0f, 0.0f));
+		WeaponRootComp->SetRelativeLocation(FVector(-RecoilIntensity, 0.0f, 0.0f));
 	}
-
-	// 사격 명령 전달
-	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
+	
 }
 
 void ASP_Character::Move(const FInputActionValue& Value)
@@ -416,13 +547,13 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	{
 		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenRate * DeltaTime));
 
-		//if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
+		if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
 	}
 
-	//if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
-	//{
-	//	Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
-	//}
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
+	}
 
 	//값이 변경되었을 때만 HUD를 갱신하여 낭비되는 CPU 자원 절약
 	if (!FMath::IsNearlyEqual(PreviousStamina, CurrentStamina))
@@ -530,5 +661,75 @@ void ASP_Character::AddCube(int32 Amount)
 	if (PC && PC->OptionWidgetInstance)
 	{
 		PC->OptionWidgetInstance->RefreshUI();
+	}
+}
+
+int32 ASP_Character::GetWeaponEnhanceLevel(EWeaponType WeaponType) const
+{
+	if (LeftWeaponData.WeaponType == WeaponType) return LeftWeaponData.EnhanceLevel;
+	if (RightWeaponData.WeaponType == WeaponType) return RightWeaponData.EnhanceLevel;
+	return 0;
+}
+
+bool ASP_Character::HasWeapon(EWeaponType WeaponType) const
+{
+	return (LeftWeaponData.WeaponType == WeaponType || RightWeaponData.WeaponType == WeaponType);
+}
+
+void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
+{
+	auto EnhanceSlot = [this](FWeaponData& SlotData, EWeaponType TargetType) {
+		if (SlotData.WeaponType == TargetType)
+		{
+			if (SlotData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+			{
+				SlotData.EnhanceLevel++;
+				UE_LOG(LogTemp, Log, TEXT("%d Weapon Enhanced to Level %d"), (int32)TargetType, SlotData.EnhanceLevel);
+			}
+		}
+		};
+
+	EnhanceSlot(LeftWeaponData, WeaponType);
+	EnhanceSlot(RightWeaponData, WeaponType);
+
+	// 무기 비주얼이나 스탯 갱신
+	SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == WeaponType ? false : true);
+}
+
+// 💡 [신규] 권총 진화 조건 체크: 기본 권총(Pistol) 8강 이고 최대 체력 레벨이 8인 경우
+bool ASP_Character::CanEvolvePistol() const
+{
+	return HasWeapon(EWeaponType::Pistol)
+		&& (GetWeaponEnhanceLevel(EWeaponType::Pistol) >= MAX_UPGRADE_LEVEL)
+		&& (MaxHealthLevel >= MAX_UPGRADE_LEVEL);
+}
+
+// 💡 [신규] 샷건 진화 조건 체크: 기본 샷건(Shotgun) 8강 이고 공격력 증가가 8인 경우
+bool ASP_Character::CanEvolveShotgun() const
+{
+	return HasWeapon(EWeaponType::Shotgun)
+		&& (GetWeaponEnhanceLevel(EWeaponType::Shotgun) >= MAX_UPGRADE_LEVEL)
+		&& (AttackPowerLevel >= MAX_UPGRADE_LEVEL);
+}
+
+void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon)
+{
+	// 권총 조합 (진화)
+	if (MainWeapon == EWeaponType::Pistol && CanEvolvePistol())
+	{
+		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Pistol) ? LeftWeaponData : RightWeaponData;
+		TargetSlot.WeaponType = EWeaponType::Requiem; // 진화형 권총으로 변경
+		TargetSlot.EnhanceLevel = 0; // 진화 후 강화 단계 초기화
+		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Requiem ? false : true);
+		UE_LOG(LogTemp, Log, TEXT("Pistol Evolved into Requiem!"));
+	}
+	// 샷건 조합 (진화)
+	else if (MainWeapon == EWeaponType::Shotgun && CanEvolveShotgun())
+	{
+		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Shotgun) ? LeftWeaponData : RightWeaponData;
+		TargetSlot.WeaponType = EWeaponType::Blast; // 진화형 샷건으로 변경
+		TargetSlot.EnhanceLevel = 0;
+		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Blast ? false : true);
+		UE_LOG(LogTemp, Log, TEXT("Shotgun Evolved into Blast!"));
 	}
 }

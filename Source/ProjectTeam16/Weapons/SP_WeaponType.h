@@ -23,13 +23,12 @@ UENUM(BlueprintType)
 enum class EWeaponType : uint8
 {
     None = 0,
-    Standard = 1      UMETA(DisplayName = "표준형 권총"),
-    Enhanced = 2      UMETA(DisplayName = "강화형 권총"),
-    Improved = 3      UMETA(DisplayName = "개량형 권총"),
-    Special = 4       UMETA(DisplayName = "특수형 권총"),
-    BasicShotgun = 5  UMETA(DisplayName = "기본형 샷건"),
-    DoubleShotgun = 6 UMETA(DisplayName = "더블 배럴 샷건"),
-    CombatShotgun = 7 UMETA(DisplayName = "전투형 샷건")
+    // 기본 무기
+    Pistol = 1  UMETA(DisplayName = "기본 권총"),
+    Shotgun = 2  UMETA(DisplayName = "기본 샷건"),
+    // 진화 무기
+    Requiem = 3  UMETA(DisplayName = "진화형 권총"),
+    Blast = 4  UMETA(DisplayName = "진화형 샷건"),
 };
 
 // 무기 데이터 구조체
@@ -45,12 +44,17 @@ struct FWeaponData
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EWeaponSpecialAbility ActiveAbility;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 EnhanceLevel = 0;
+
     // 기본 생성자 (인자가 없을 때 기본값 지정)
     FWeaponData()
         : WeaponType(EWeaponType::None)
         , ActiveAbility(EWeaponSpecialAbility::None)
     {
     }
+
+
 
     //인자를 1개만 받을 때의 생성자 (기본 무기 지급용: Standard 등)
     FWeaponData(EWeaponType InType)
@@ -95,7 +99,7 @@ struct FGunStats : public FTableRowBase
 
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
-    UStaticMesh* WeaponMesh; // 무기 외형
+    UStaticMesh* WeaponMesh = nullptr; // 무기 외형
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Effect")
     class UNiagaraSystem* MuzzleFlash; // 총구 화염 이펙트

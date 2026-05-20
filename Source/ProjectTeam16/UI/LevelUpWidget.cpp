@@ -3,16 +3,17 @@
 #include "Components/Image.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/Texture2D.h"
+#include "ProjectTeam16/Character/SP_Character.h"
 #include "Team16PlayerController.h"
 
 void ULevelUpWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    //if (CardButton1) CardButton1->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard1Clicked);
-    //if (CardButton2) CardButton2->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard2Clicked);
-    //if (CardButton3) CardButton3->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard3Clicked);
-    //if (CardButton4) CardButton4->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard4Clicked);
+    if (CardButton1) CardButton1->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard1Clicked);
+    if (CardButton2) CardButton2->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard2Clicked);
+    if (CardButton3) CardButton3->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard3Clicked);
+    if (CardButton4) CardButton4->OnClicked.AddDynamic(this, &ULevelUpWidget::OnCard4Clicked);
 }
 
 UTexture2D* ULevelUpWidget::LoadCardTexture(const FString& TexturePath)
@@ -26,147 +27,88 @@ UTexture2D* ULevelUpWidget::LoadCardTexture(const FString& TexturePath)
     }
     return Texture;
 }
-/*
+
 TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
 {
     TArray<FUpgradeData> Pool;
     if (!PlayerChar) return Pool;
 
-    // 스탯 카드 (항상 등장)
-    auto MakeStatCard = [&](EUpgradeType Type, const FString& Path)
-        {
-            FUpgradeData Data;
-            Data.UpgradeType = Type;
-            Data.CardTexture = LoadCardTexture(Path);
-            Pool.Add(Data);
-        };
-
-    MakeStatCard(EUpgradeType::MaxHP,
-        TEXT("/Game/UI/InGameUI/png/CurHPUP-Photoroom"));
-    MakeStatCard(EUpgradeType::HPRecover,
-        TEXT("/Game/UI/InGameUI/png/HPgenerate-Photoroom"));
-    MakeStatCard(EUpgradeType::AttackUp,
-        TEXT("/Game/UI/InGameUI/png/ATKUP-Photoroom"));
-
-    // 강화 경로 맵
-    TMap<EWeaponType, FString> EnhancePathMap;
-    EnhancePathMap.Add(EWeaponType::Standard, TEXT("/Game/UI/InGameUI/png/1gunpuls-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Old, TEXT("/Game/UI/InGameUI/png/2gunplus-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Supply, TEXT("/Game/UI/InGameUI/png/3gunplus-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Spare, TEXT("/Game/UI/InGameUI/png/4gunplus-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Enhanced, TEXT("/Game/UI/InGameUI/png/Alphagun-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Improved, TEXT("/Game/UI/InGameUI/png/BetaGun-Photoroom"));
-    EnhancePathMap.Add(EWeaponType::Special, TEXT("/Game/UI/InGameUI/png/Specialgun-Photoroom"));
-
-    // 새 무기 경로 맵
-    TMap<EWeaponType, FString> NewWeaponPathMap;
-    NewWeaponPathMap.Add(EWeaponType::Old, TEXT("/Game/UI/InGameUI/png/2gun-Photoroom"));
-    NewWeaponPathMap.Add(EWeaponType::Supply, TEXT("/Game/UI/InGameUI/png/3gun-Photoroom"));
-    NewWeaponPathMap.Add(EWeaponType::Spare, TEXT("/Game/UI/InGameUI/png/4gun"));
-
-    // 조합 해금 여부
-    bool bHasImproved = PlayerChar->HasWeapon(EWeaponType::Improved);
-    bool bHasEnhanced = PlayerChar->HasWeapon(EWeaponType::Enhanced);
-    bool bHasSpecial = PlayerChar->HasWeapon(EWeaponType::Special);
-
-    // 강화 카드 (소지 중 + 3강 미만)
-    TArray<EWeaponType> EnhanceOrder = {
-        EWeaponType::Standard, EWeaponType::Old,
-        EWeaponType::Supply,   EWeaponType::Spare,
-        EWeaponType::Enhanced, EWeaponType::Improved,
-        EWeaponType::Special
-    };
-
-    for (EWeaponType Type : EnhanceOrder)
+    // 1. 최대 체력 증가 (8강 미만일 때만 등장)
+    if (PlayerChar->MaxHealthLevel < PlayerChar->MAX_UPGRADE_LEVEL)
     {
-        if (!PlayerChar->HasWeapon(Type)) continue;
-        int32 Level = PlayerChar->GetWeaponEnhanceLevel(Type);
-        if (Level < 0 || Level >= 3) continue;
-
-        FUpgradeData Enhance;
-        Enhance.UpgradeType = EUpgradeType::WeaponEnhance;
-        Enhance.WeaponTarget = Type;
-        Enhance.CardTexture = LoadCardTexture(EnhancePathMap[Type]);
-        Pool.Add(Enhance);
-        UE_LOG(LogTemp, Warning, TEXT("Enhance Added: Type%d Level%d"), (int32)Type, Level);
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::MaxHP;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/CurHP"));
+        Pool.Add(Data);
     }
 
-    // 새 무기 카드
-    // 개량형 OR 특수형 해금 시 표준형+구형 계열 제거
-    if (!bHasImproved && !bHasSpecial)
+    // 2. 공격력 증가 (8강 미만일 때만 등장)
+    if (PlayerChar->AttackPowerLevel < PlayerChar->MAX_UPGRADE_LEVEL)
     {
-        if (!PlayerChar->HasWeapon(EWeaponType::Old))
-        {
-            FUpgradeData NewOld;
-            NewOld.UpgradeType = EUpgradeType::NewWeapon;
-            NewOld.WeaponTarget = EWeaponType::Old;
-            NewOld.CardTexture = LoadCardTexture(NewWeaponPathMap[EWeaponType::Old]);
-            Pool.Add(NewOld);
-            UE_LOG(LogTemp, Warning, TEXT("NewWeapon Added: Old"));
-        }
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::AttackUp;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/ATKUP"));
+        Pool.Add(Data);
     }
 
-    // 강화형 OR 특수형 해금 시 보급형+예비용 계열 제거
-    if (!bHasEnhanced && !bHasSpecial)
+    // 3. 최대 스태미나 증가 (8강 미만일 때만 등장)
+    if (PlayerChar->MaxStaminaLevel < PlayerChar->MAX_UPGRADE_LEVEL)
     {
-        if (!PlayerChar->HasWeapon(EWeaponType::Supply))
-        {
-            FUpgradeData NewSupply;
-            NewSupply.UpgradeType = EUpgradeType::NewWeapon;
-            NewSupply.WeaponTarget = EWeaponType::Supply;
-            NewSupply.CardTexture = LoadCardTexture(NewWeaponPathMap[EWeaponType::Supply]);
-            Pool.Add(NewSupply);
-            UE_LOG(LogTemp, Warning, TEXT("NewWeapon Added: Supply"));
-        }
-        if (!PlayerChar->HasWeapon(EWeaponType::Spare))
-        {
-            FUpgradeData NewSpare;
-            NewSpare.UpgradeType = EUpgradeType::NewWeapon;
-            NewSpare.WeaponTarget = EWeaponType::Spare;
-            NewSpare.CardTexture = LoadCardTexture(NewWeaponPathMap[EWeaponType::Spare]);
-            Pool.Add(NewSpare);
-            UE_LOG(LogTemp, Warning, TEXT("NewWeapon Added: Spare"));
-        }
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::StaminaUp;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/stamina"));
+        Pool.Add(Data);
     }
 
-    // 조합 카드
-    if (PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Standard) == 3 &&
-        PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Old) == 3)
+    // 4. 상시 체력 회복 (선택지 다양성용 - 항상 등장)
     {
-        FUpgradeData Combine;
-        Combine.UpgradeType = EUpgradeType::WeaponCombine;
-        Combine.WeaponTarget = EWeaponType::Standard;
-        Combine.WeaponTarget2 = EWeaponType::Old;
-        Combine.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/gkqcp-Photoroom"));
-        Pool.Add(Combine);
-        UE_LOG(LogTemp, Warning, TEXT("Combine Added: Standard+Old->Improved"));
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::HPRecover;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/HPGenerate"));
+        Pool.Add(Data);
     }
-    if (PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Supply) == 3 &&
-        PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Spare) == 3)
+
+    // 5. 기본 무기 강화 (가지고 있고, 8강 미만일 때만 등장)
+    if (PlayerChar->HasWeapon(EWeaponType::Pistol) && PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Pistol) < PlayerChar->MAX_UPGRADE_LEVEL)
     {
-        FUpgradeData Combine;
-        Combine.UpgradeType = EUpgradeType::WeaponCombine;
-        Combine.WeaponTarget = EWeaponType::Supply;
-        Combine.WeaponTarget2 = EWeaponType::Spare;
-        Combine.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/gkqcp2-Photoroom"));
-        Pool.Add(Combine);
-        UE_LOG(LogTemp, Warning, TEXT("Combine Added: Supply+Spare->Enhanced"));
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::WeaponEnhance;
+        Data.WeaponTarget = EWeaponType::Pistol;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/pistol"));
+        Pool.Add(Data);
     }
-    if (PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Enhanced) == 3 &&
-        PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Improved) == 3)
+    if (PlayerChar->HasWeapon(EWeaponType::Shotgun) && PlayerChar->GetWeaponEnhanceLevel(EWeaponType::Shotgun) < PlayerChar->MAX_UPGRADE_LEVEL)
     {
-        FUpgradeData Combine;
-        Combine.UpgradeType = EUpgradeType::WeaponCombine;
-        Combine.WeaponTarget = EWeaponType::Enhanced;
-        Combine.WeaponTarget2 = EWeaponType::Improved;
-        Combine.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/gkacp3"));
-        Pool.Add(Combine);
-        UE_LOG(LogTemp, Warning, TEXT("Combine Added: Enhanced+Improved->Special"));
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::WeaponEnhance;
+        Data.WeaponTarget = EWeaponType::Shotgun;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/shotgun"));
+        Pool.Add(Data);
+    }
+
+    // 6. 조합(진화) 카드 등장 조건 체크
+    if (PlayerChar->CanEvolvePistol())
+    {
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::WeaponCombine;
+        Data.WeaponTarget = EWeaponType::Pistol;
+        Data.WeaponTarget2 = EWeaponType::None;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/requiem"));
+        Pool.Add(Data);
+    }
+    if (PlayerChar->CanEvolveShotgun())
+    {
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::WeaponCombine;
+        Data.WeaponTarget = EWeaponType::Shotgun;
+        Data.WeaponTarget2 = EWeaponType::None;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/blast"));
+        Pool.Add(Data);
     }
 
     return Pool;
-}*/
-/*
+}
+
 void ULevelUpWidget::SetupRandomCards()
 {
     ASP_Character* PlayerChar = Cast<ASP_Character>(
@@ -179,9 +121,9 @@ void ULevelUpWidget::SetupRandomCards()
     }
 
     TArray<FUpgradeData> Pool = BuildUpgradePool(PlayerChar);
-    UE_LOG(LogTemp, Warning, TEXT("Pools : %d"), Pool.Num());
+    UE_LOG(LogTemp, Warning, TEXT("Total Pool Size: %d"), Pool.Num());
 
-    // 풀 셔플
+    // 피셔-예이츠 셔플 알고리즘으로 풀 셔플
     for (int32 i = Pool.Num() - 1; i > 0; i--)
     {
         int32 j = FMath::RandRange(0, i);
@@ -197,15 +139,17 @@ void ULevelUpWidget::SetupRandomCards()
 
     // 4개 미만이면 빈 카드 프레임으로 채우기
     UTexture2D* EmptyCardTexture = Cast<UTexture2D>(
-        StaticLoadObject(UTexture2D::StaticClass(), nullptr,
-            TEXT("/Game/UI/InGameUI/png/CardFrame")));
+        StaticLoadObject(UTexture2D::StaticClass(), nullptr, TEXT("/Game/UI/InGameUI/png/CardFrame")));
 
     while (CurrentUpgrades.Num() < 4)
     {
         FUpgradeData EmptyCard;
-        EmptyCard.UpgradeType = EUpgradeType::MaxHP;
+        // 💡 중요: 빈 카드는 오작동 방지를 위해 전용 상태(타입 미지정 등)나 명시적 플래그 설정 권장
+        // 여기서는 WeaponCombine(기본값 아님)에 Target=None 및 특정 텍스처로 구분 유효화
+        EmptyCard.UpgradeType = EUpgradeType::HPRecover; // 아무 스위치에나 걸려도 안전하거나 무시되도록 처리
         EmptyCard.CardTexture = EmptyCardTexture;
         EmptyCard.WeaponTarget = EWeaponType::None;
+        EmptyCard.WeaponTarget2 = EWeaponType::None;
         CurrentUpgrades.Add(EmptyCard);
     }
 
@@ -213,7 +157,7 @@ void ULevelUpWidget::SetupRandomCards()
     {
         ApplyCardData(i, CurrentUpgrades[i]);
     }
-}*/
+}
 
 void ULevelUpWidget::ApplyCardData(int32 Index, const FUpgradeData& Data)
 {
@@ -227,9 +171,7 @@ void ULevelUpWidget::ApplyCardData(int32 Index, const FUpgradeData& Data)
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Card%d - Type:%d WeaponTarget:%d Texture:%s"),
-        Index,
-        (int32)Data.UpgradeType,
-        (int32)Data.WeaponTarget,
+        Index, (int32)Data.UpgradeType, (int32)Data.WeaponTarget,
         Data.CardTexture ? *Data.CardTexture->GetName() : TEXT("NULL"));
 
     if (ImgBlock && Data.CardTexture)
@@ -245,22 +187,21 @@ void ULevelUpWidget::ApplyCardData(int32 Index, const FUpgradeData& Data)
     }
 }
 
-//void ULevelUpWidget::OnCard1Clicked() { OnCardSelected(0); }
-//void ULevelUpWidget::OnCard2Clicked() { OnCardSelected(1); }
-//void ULevelUpWidget::OnCard3Clicked() { OnCardSelected(2); }
-//void ULevelUpWidget::OnCard4Clicked() { OnCardSelected(3); }
-/*
+void ULevelUpWidget::OnCard1Clicked() { OnCardSelected(0); }
+void ULevelUpWidget::OnCard2Clicked() { OnCardSelected(1); }
+void ULevelUpWidget::OnCard3Clicked() { OnCardSelected(2); }
+void ULevelUpWidget::OnCard4Clicked() { OnCardSelected(3); }
+
 void ULevelUpWidget::OnCardSelected(int32 Index)
 {
     if (!CurrentUpgrades.IsValidIndex(Index)) return;
 
     FUpgradeData Selected = CurrentUpgrades[Index];
 
-    // 빈 카드 클릭 시 무시
-    if (Selected.WeaponTarget == EWeaponType::None &&
-        Selected.CardTexture &&
-        Selected.CardTexture->GetName() == TEXT("CardFrame"))
+    // 💡 안전한 빈 카드 예외 처리: 텍스처 이름 검증 혹은 WeaponTarget 판정
+    if (Selected.CardTexture && Selected.CardTexture->GetName() == TEXT("CardFrame"))
     {
+        UE_LOG(LogTemp, Log, TEXT("Empty Card Slot Clicked. Ignored."));
         return;
     }
 
@@ -271,32 +212,72 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
     {
         switch (Selected.UpgradeType)
         {
+
         case EUpgradeType::MaxHP:
-            PlayerChar->MaxHealth += 20.0f;
-            PlayerChar->CurrentHealth += 20.0f;
-            PlayerChar->SyncHUDValues();
-            break;
+
+            // 1. 최대 강화 수치(MAX_UPGRADE_LEVEL = 8) 제한 체크
+            if (PlayerChar->MaxHealthLevel < PlayerChar->MAX_UPGRADE_LEVEL)
+            {
+                PlayerChar->MaxHealthLevel++; // 레벨 증가 (진화 조건 등에 활용)
+
+                // 2. 실제 스태미나 스탯 증가 (값은 기획에 맞게 조절, 예: +20.0f)
+                PlayerChar->MaxHealthLevel += 20.0f;
+                PlayerChar->CurrentHealth += 20.0f; // 최대치가 늘어난 만큼 현재치도 보너스 회복
+
+                // 3. 변경된 스탯을 PlayerController 및 HUD 위젯에 동기화
+                PlayerChar->SyncHUDValues();
+
+                UE_LOG(LogTemp, Log, TEXT("MaxHealth Up! Level: %d, MaxStamina: %f"),
+                    PlayerChar->MaxHealthLevel, PlayerChar->MaxHealth);
+            }
         case EUpgradeType::HPRecover:
             PlayerChar->CurrentHealth = FMath::Min(
                 PlayerChar->CurrentHealth + 30.0f, PlayerChar->MaxHealth);
             PlayerChar->SyncHUDValues();
             break;
+
         case EUpgradeType::AttackUp:
-            PlayerChar->AttackPower *= 1.1f;
-            UE_LOG(LogTemp, Log, TEXT("AttackPower Up: %f"), PlayerChar->AttackPower);
-            break;
+            // 1. 최대 강화 수치(MAX_UPGRADE_LEVEL = 8) 제한 체크
+            if (PlayerChar->AttackPowerLevel < PlayerChar->MAX_UPGRADE_LEVEL)
+            {
+                PlayerChar->AttackPowerLevel++; // 레벨 증가 (진화 조건 등에 활용)
+
+                // 2. 실제 스태미나 스탯 증가 (값은 기획에 맞게 조절, 예: +20.0f)
+                PlayerChar->AttackPower *= 1.1f;
+
+                // 3. 변경된 스탯을 PlayerController 및 HUD 위젯에 동기화
+                PlayerChar->SyncHUDValues();
+
+                UE_LOG(LogTemp, Log, TEXT("AttackPower Up! Level: %d, AttackPower: %f"),
+                    PlayerChar->AttackPowerLevel, PlayerChar->AttackPower);
+            }
+        case EUpgradeType::StaminaUp:
+            // 1. 최대 강화 수치(MAX_UPGRADE_LEVEL = 8) 제한 체크
+            if (PlayerChar->MaxStaminaLevel < PlayerChar->MAX_UPGRADE_LEVEL)
+            {
+                PlayerChar->MaxStaminaLevel++; // 레벨 증가 (진화 조건 등에 활용)
+
+                // 2. 실제 스태미나 스탯 증가 (값은 기획에 맞게 조절, 예: +20.0f)
+                PlayerChar->MaxStamina += 20.0f;
+                PlayerChar->CurrentStamina += 20.0f; // 최대치가 늘어난 만큼 현재치도 보너스 회복
+
+                // 3. 변경된 스탯을 PlayerController 및 HUD 위젯에 동기화
+                PlayerChar->SyncHUDValues();
+
+                UE_LOG(LogTemp, Log, TEXT("MaxStamina Up! Level: %d, MaxStamina: %f"),
+                    PlayerChar->MaxStaminaLevel, PlayerChar->MaxStamina);
+            }
         case EUpgradeType::WeaponEnhance:
             PlayerChar->EnhanceWeapon(Selected.WeaponTarget);
             break;
-        case EUpgradeType::NewWeapon:
-            PlayerChar->AddWeapon(Selected.WeaponTarget);
-            break;
+
         case EUpgradeType::WeaponCombine:
             PlayerChar->CombineWeapons(Selected.WeaponTarget, Selected.WeaponTarget2);
             break;
         }
     }
 
+    // UI 닫기 및 일시정지 해제 프로세스
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
     if (PC)
     {
@@ -313,4 +294,3 @@ void ULevelUpWidget::OnCardSelected(int32 Index)
         }
     }
 }
-*/

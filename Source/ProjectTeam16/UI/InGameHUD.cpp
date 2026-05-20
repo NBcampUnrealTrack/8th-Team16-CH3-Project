@@ -15,6 +15,11 @@ void UInGameHUD::NativeConstruct()
 		BossHealthBox = GetWidgetFromName(TEXT("BossHealthBox"));
 	}
 
+	if (!MiniMap)
+	{
+		MiniMap = GetWidgetFromName(TEXT("MiniMap"));
+	}
+
 	if (!BossnameText)
 	{
 		BossnameText = Cast<UTextBlock>(GetWidgetFromName(TEXT("BossNameText")));
@@ -169,8 +174,26 @@ void UInGameHUD::HideTime()
 	}
 }
 
+void UInGameHUD::ShowMiniMap()
+{
+	if (MiniMap)
+	{
+		MiniMap->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void UInGameHUD::HideMiniMap()
+{
+	if (MiniMap)
+	{
+		MiniMap->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UInGameHUD::ShowBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
 {
+	HideMiniMap();
+
 	if (BossHealthBox)
 	{
 		BossHealthBox->SetVisibility(ESlateVisibility::Visible);
