@@ -71,13 +71,12 @@ public:
 	void ShowGameOver();
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
+
 	void StartBossClearSequence();
 
-	//UFUNCTION(BlueprintCallable, Category = "UI")
-	//void ShowLevelUpUI();
-
-	//UFUNCTION(BlueprintCallable, Category = "UI")
-	//void CloseLevelUpUI();
+	void ShowLevelUpUI();
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void CloseLevelUpUI();
 
 	UFUNCTION(BlueprintCallable, Category = "UI|Timer")
 	void SetGameTimerStartSeconds(int32 NewStartSeconds);
@@ -192,7 +191,7 @@ protected:
 	TSubclassOf<ULevelUpWidget> LevelUpWidgetClass;
 
 private:
-	//void OpenLevelUpUI();
+
 	//void CheatMaxEnhanceAllWeapons();
 
 	UPROPERTY()
@@ -213,5 +212,7 @@ private:
 public:
 	UPROPERTY()
 	TObjectPtr<UOptionWidget> OptionWidgetInstance;
+
+	void OpenLevelUpUI();
 };
 

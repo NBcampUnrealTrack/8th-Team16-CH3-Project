@@ -69,8 +69,10 @@ void ASP_Character::BeginPlay()
 	}
 
 	// 게임 시작 시 기본 권총을 왼손 오른손에 샷건 각각 지급
-	LeftWeaponData = FWeaponData(EWeaponType::Standard);
-	RightWeaponData = FWeaponData(EWeaponType::BasicShotgun);
+	LeftWeaponData.WeaponType = EWeaponType::Pistol;
+	LeftWeaponData.EnhanceLevel = 1;
+RightWeaponData.WeaponType = EWeaponType::Shotgun;
+    RightWeaponData.EnhanceLevel = 1;
 
 	SpawnOrUpdateHandWeapon(false); // 왼손 스폰
 	SpawnOrUpdateHandWeapon(true);  // 오른손 스폰
@@ -125,6 +127,7 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 }
 
 void ASP_Character::SyncHUDValues()
+
 {
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 	{
@@ -166,14 +169,14 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 	SyncHUDValues();
 
 	// 레벨업 UI 실행 (주석 해제 및 함수명 확인)
-	/*if (bLeveledUp)
+	if (bLeveledUp)
 	{
 		if (ATeam16PlayerController* PC = Cast<ATeam16PlayerController>(GetController()))
-		{
+		{	
 			// 헤더파일 확인 결과 OpenLevelUpUI가 정의되어 있습니다.
 			PC->OpenLevelUpUI();
 		}
-	}*/
+	}
 }
 
 
@@ -416,13 +419,13 @@ void ASP_Character::HandleStamina(float DeltaTime)
 	{
 		CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + (StaminaRegenRate * DeltaTime));
 
-		//if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
+		if (bIsSprinting && CurrentStamina <= 0.0f) SprintEnd();
 	}
 
-	//if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
-	//{
-	//	Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
-	//}
+	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
+	{
+		Team16PlayerController->UpdateHUDStamina(CurrentStamina, MaxStamina);
+	}
 
 	//값이 변경되었을 때만 HUD를 갱신하여 낭비되는 CPU 자원 절약
 	if (!FMath::IsNearlyEqual(PreviousStamina, CurrentStamina))
@@ -530,5 +533,75 @@ void ASP_Character::AddCube(int32 Amount)
 	if (PC && PC->OptionWidgetInstance)
 	{
 		PC->OptionWidgetInstance->RefreshUI();
+	}
+}
+
+int32 ASP_Character::GetWeaponEnhanceLevel(EWeaponType WeaponType) const
+{
+	if (LeftWeaponData.WeaponType == WeaponType) return LeftWeaponData.EnhanceLevel;
+	if (RightWeaponData.WeaponType == WeaponType) return RightWeaponData.EnhanceLevel;
+	return 0;
+}
+
+bool ASP_Character::HasWeapon(EWeaponType WeaponType) const
+{
+	return (LeftWeaponData.WeaponType == WeaponType || RightWeaponData.WeaponType == WeaponType);
+}
+
+void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
+{
+	auto EnhanceSlot = [this](FWeaponData& SlotData, EWeaponType TargetType) {
+		if (SlotData.WeaponType == TargetType)
+		{
+			if (SlotData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+			{
+				SlotData.EnhanceLevel++;
+				UE_LOG(LogTemp, Log, TEXT("%d Weapon Enhanced to Level %d"), (int32)TargetType, SlotData.EnhanceLevel);
+			}
+		}
+		};
+
+	EnhanceSlot(LeftWeaponData, WeaponType);
+	EnhanceSlot(RightWeaponData, WeaponType);
+
+	// 무기 비주얼이나 스탯 갱신
+	SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == WeaponType ? false : true);
+}
+
+// 💡 [신규] 권총 진화 조건 체크: 기본 권총(Pistol) 8강 이고 최대 체력 레벨이 8인 경우
+bool ASP_Character::CanEvolvePistol() const
+{
+	return HasWeapon(EWeaponType::Pistol)
+		&& (GetWeaponEnhanceLevel(EWeaponType::Pistol) >= MAX_UPGRADE_LEVEL)
+		&& (MaxHealthLevel >= MAX_UPGRADE_LEVEL);
+}
+
+// 💡 [신규] 샷건 진화 조건 체크: 기본 샷건(Shotgun) 8강 이고 공격력 증가가 8인 경우
+bool ASP_Character::CanEvolveShotgun() const
+{
+	return HasWeapon(EWeaponType::Shotgun)
+		&& (GetWeaponEnhanceLevel(EWeaponType::Shotgun) >= MAX_UPGRADE_LEVEL)
+		&& (AttackPowerLevel >= MAX_UPGRADE_LEVEL);
+}
+
+void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon)
+{
+	// 권총 조합 (진화)
+	if (MainWeapon == EWeaponType::Pistol && CanEvolvePistol())
+	{
+		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Pistol) ? LeftWeaponData : RightWeaponData;
+		TargetSlot.WeaponType = EWeaponType::Requiem; // 진화형 권총으로 변경
+		TargetSlot.EnhanceLevel = 0; // 진화 후 강화 단계 초기화
+		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Requiem ? false : true);
+		UE_LOG(LogTemp, Log, TEXT("Pistol Evolved into Requiem!"));
+	}
+	// 샷건 조합 (진화)
+	else if (MainWeapon == EWeaponType::Shotgun && CanEvolveShotgun())
+	{
+		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Shotgun) ? LeftWeaponData : RightWeaponData;
+		TargetSlot.WeaponType = EWeaponType::Blast; // 진화형 샷건으로 변경
+		TargetSlot.EnhanceLevel = 0;
+		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Blast ? false : true);
+		UE_LOG(LogTemp, Log, TEXT("Shotgun Evolved into Blast!"));
 	}
 }

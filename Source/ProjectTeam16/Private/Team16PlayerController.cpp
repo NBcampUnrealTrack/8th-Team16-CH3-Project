@@ -34,10 +34,8 @@ void ATeam16PlayerController::SetupInputComponent()
 	PauseAction->bTriggerWhenPaused = true;
 	EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ATeam16PlayerController::TogglePauseMenu);
 	
-	/*InputComponent->BindAction("OpenLevelUp", IE_Pressed,
+	InputComponent->BindAction("OpenLevelUp", IE_Pressed,
 		this, &ATeam16PlayerController::OpenLevelUpUI);
-	InputComponent->BindAction("CheatMaxEnhance", IE_Pressed,
-		this, &ATeam16PlayerController::CheatMaxEnhanceAllWeapons);*/
 	InputComponent->BindAction("OpenOption", IE_Pressed,
 		this, &ATeam16PlayerController::OpenOptionUI);
 }
@@ -801,7 +799,7 @@ void ATeam16PlayerController::UpdateHUDTime()
 		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
 	}
 }
-/*
+
 void ATeam16PlayerController::OpenLevelUpUI()
 {
 	if (bIsLevelUpUIOpen)
@@ -857,7 +855,7 @@ void ATeam16PlayerController::CloseLevelUpUI()
 	SetPause(false);
 	bShowMouseCursor = false;
 	SetInputMode(FInputModeGameOnly());
-}*/
+}
 
 void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
 {

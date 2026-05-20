@@ -58,9 +58,8 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
         EWeaponType CheckType = (OwnerCharacter->LeftHandWeapon == this) ? OwnerCharacter->LeftWeaponData.WeaponType : OwnerCharacter->RightWeaponData.WeaponType;
 
         // 샷건 열거형에 해당하는 무기 타입들을 직접 명시합니다.
-        if (CheckType == EWeaponType::BasicShotgun ||
-            CheckType == EWeaponType::DoubleShotgun ||
-            CheckType == EWeaponType::CombatShotgun)
+        if (CheckType == EWeaponType::Shotgun ||
+            CheckType == EWeaponType::Blast)
         {
             bIsShotgun = true;
         }
