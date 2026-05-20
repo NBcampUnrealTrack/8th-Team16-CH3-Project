@@ -156,12 +156,18 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                             ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
                             if (DamagePopup)
                             {
-                                DamagePopup->SetDamageValue(FinalDamage);
-                                if (bIsCritical) DamagePopup->SetCriticalEffect();
+                                if (bIsCritical && bIsX2Damage)
+                                {
+                                    DamagePopup->SetTranscendenceEffect();
+                                }
                                 else if (bIsX2Damage)
+                                {
                                     DamagePopup->SetX2DamageEffect();
+                                }
                                 else if (bIsCritical)
+                                {
                                     DamagePopup->SetCriticalEffect();
+                                }
                             }
 #endif
                         }
@@ -195,11 +201,8 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                 }
             }
 
-            if (bHit)
+            if (bHit && HitResult.GetActor())
             {
-                AActor* HitActor = HitResult.GetActor();
-                if (HitActor)
-                {
                     AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
                     float FinalDamage = CurrentStats.Damage;
                     bool bIsCritical = false;
@@ -225,10 +228,10 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                         FinalDamage *= OwnerCharacter->AttackPower;
                     }
 
-                    UGameplayStatics::ApplyDamage(HitActor, FinalDamage, DamageInstigator, this, UDamageType::StaticClass());
+                    UGameplayStatics::ApplyDamage(HitResult.GetActor(), FinalDamage, DamageInstigator, this, UDamageType::StaticClass());
 
 #if ENABLE_WEAPON_DEBUG
-                    DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 8, FColor::Purple, false, 2.0f, 0, 1.5f);
+                    DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 12.0f, 8, FColor::Red, false, 2.0f, 0, 1.0f);
 
                     FActorSpawnParameters TextSpawnParams;
                     TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -253,12 +256,11 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                         }
                     }
 #endif
-                }
-
                 if (CurrentStats.ImpactEffect)
                     UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
                 if (CurrentStats.ImpactSound)
                     UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, HitResult.ImpactPoint);
+                
             }
         }
     }
