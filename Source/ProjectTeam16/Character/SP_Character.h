@@ -38,14 +38,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
 	float AttackPower = 1.0f;
 
-	/*int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const
-	{
-		for (const FWeaponData& W : OwnedWeapons)
-			if (W.WeaponType == WeaponType) return W.EnhanceLevel;
-		return -1;
-	}*/
-
-
 	// bIsRightHand가 true면 오른손 무기, false면 왼손 무기를 NewType으로 업그레이드합니다.
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UpgradeHandWeapon(EWeaponType NewType, bool bIsRightHand);
@@ -164,12 +156,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float SprintSpeed = 1000.0f;
 
-	// 스테미너 설정
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
-	float MaxStamina = 100.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Stamina")   //UI에 표기 가능
-		float CurrentStamina = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // 초당 소모량
@@ -238,5 +224,32 @@ protected:
 		// 큐브 옵션 초기화
 		void ResetCubeOptions();
 
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 MaxHealthLevel = 0;
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 AttackPowerLevel = 0;
+		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
+		int32 MaxStaminaLevel = 0;
+
+		const int32 MAX_UPGRADE_LEVEL = 8; // 최대 강화 수치 정의
+
+		// 💡 특정 무기를 가지고 있고, 해당 무기의 강화 수치를 반환하는 헬퍼 함수
+		int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const;
+		bool HasWeapon(EWeaponType WeaponType) const;
+
+		// 강화 및 조합 함수
+		void EnhanceWeapon(EWeaponType WeaponType);
+		void CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon);
+
+		// 💡 조합 가능 여부 체크 함수 (레벨업 UI 풀 생성 시 사용)
+		bool CanEvolvePistol() const;
+		bool CanEvolveShotgun() const;
+
+		// 스테미너 설정
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
+		float MaxStamina = 100.0f;
+
+		UPROPERTY(BlueprintReadOnly, Category = "Stamina")
+		float CurrentStamina = 100.0f;
 #pragma endregion
 };
