@@ -7,6 +7,7 @@
 #include "Team16GameMode.generated.h"
 
 class UUserWidget;
+class UMainMenu;
 
 UCLASS()
 class PROJECTTEAM16_API ATeam16GameMode : public AGameMode
@@ -23,8 +24,8 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<UUserWidget> MainMenuWidgetClass;
+	TSubclassOf<UMainMenu> MainMenuWidgetClass;
 
 	UPROPERTY()
-	UUserWidget* MainMenuWidgetInstance;
+	TObjectPtr<UMainMenu> MainMenuWidgetInstance;
 };

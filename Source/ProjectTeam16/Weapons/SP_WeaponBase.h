@@ -42,4 +42,8 @@ protected:
     FGunStats CurrentStats;
 
     EWeaponSpecialAbility MyAbility;
+
+    // 블루프린트에서 무기별로 지정해 줄 카메라 셰이크 에셋 클래스
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+    TSubclassOf<class UCameraShakeBase> FireCameraShakeClass;
 };
