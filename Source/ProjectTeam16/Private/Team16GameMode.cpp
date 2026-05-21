@@ -3,12 +3,20 @@
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectTeam16/Character/SP_Character.h"
+#include "ProjectTeam16/UI/MainMenu.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/ConstructorHelpers.h"
 
 ATeam16GameMode::ATeam16GameMode()
 {
     PlayerControllerClass = ATeam16PlayerController::StaticClass();
     DefaultPawnClass = ASP_Character::StaticClass();
+
+    static ConstructorHelpers::FClassFinder<UMainMenu> DefaultMainMenuWidgetClass(TEXT("/Game/UI/Menus/WBP_MainMenu"));
+    if (DefaultMainMenuWidgetClass.Succeeded())
+    {
+        MainMenuWidgetClass = DefaultMainMenuWidgetClass.Class;
+    }
 }
 
 void ATeam16GameMode::BeginPlay()
@@ -45,12 +53,18 @@ void ATeam16GameMode::ShowMainMenu()
     UWorld* World = GetWorld();
     if (!World || !MainMenuWidgetClass)
     {
+        UE_LOG(LogTemp, Warning, TEXT("MainMenu: Missing World or MainMenuWidgetClass. World=%s Class=%s"),
+            World ? TEXT("Valid") : TEXT("Null"),
+            MainMenuWidgetClass ? *MainMenuWidgetClass->GetName() : TEXT("Null"));
         return;
     }
 
     if (!MainMenuWidgetInstance)
     {
-        MainMenuWidgetInstance = CreateWidget<UUserWidget>(World, MainMenuWidgetClass);
+        MainMenuWidgetInstance = CreateWidget<UMainMenu>(World, MainMenuWidgetClass);
+        UE_LOG(LogTemp, Log, TEXT("MainMenu: Created widget instance from class %s. Instance=%s"),
+            *MainMenuWidgetClass->GetName(),
+            MainMenuWidgetInstance ? *MainMenuWidgetInstance->GetClass()->GetName() : TEXT("Null"));
     }
 
     if (MainMenuWidgetInstance)
@@ -59,6 +73,8 @@ void ATeam16GameMode::ShowMainMenu()
         {
             MainMenuWidgetInstance->AddToViewport();
         }
+
+        MainMenuWidgetInstance->Show();
 
         UGameplayStatics::SetGamePaused(World, true);
 

@@ -7,32 +7,9 @@
 #include "GameFramework/PlayerController.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
-#include "Materials/MaterialInterface.h"
-#include "MediaPlayer.h"
-#include "MediaSource.h"
-#include "UObject/ConstructorHelpers.h"
-
-UMainMenu::UMainMenu(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	static ConstructorHelpers::FObjectFinder<UMediaPlayer> DefaultMediaPlayer(TEXT("/Game/UI/Videos/MP_MainMenu.MP_MainMenu"));
-	if (DefaultMediaPlayer.Succeeded())
-	{
-		MainMenuMediaPlayer = DefaultMediaPlayer.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UMediaSource> DefaultMediaSource(TEXT("/Game/UI/Videos/MainMenu.MainMenu"));
-	if (DefaultMediaSource.Succeeded())
-	{
-		MainMenuMediaSource = DefaultMediaSource.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultVideoMaterial(TEXT("/Game/UI/Videos/M_MainMenuVideo_UI.M_MainMenuVideo_UI"));
-	if (DefaultVideoMaterial.Succeeded())
-	{
-		MainMenuVideoMaterial = DefaultVideoMaterial.Object;
-	}
-}
+#include "Components/CanvasPanelSlot.h"
+#include "Blueprint/WidgetTree.h"
+#include "Containers/Ticker.h"
 
 void UMainMenu::NativeConstruct()
 {
@@ -59,12 +36,13 @@ void UMainMenu::NativeConstruct()
 
 	SetButtonImageHovered(StartButtonImage, false);
 	SetButtonImageHovered(QuitButtonImage, false);
-	StartMainMenuBackgroundVideo();
+	ResolveBackgroundLightsOffImage();
+	StartMainMenuLightFlicker();
 }
 
 void UMainMenu::NativeDestruct()
 {
-	StopMainMenuBackgroundVideo();
+	StopMainMenuLightFlicker();
 
 	Super::NativeDestruct();
 }
@@ -72,13 +50,13 @@ void UMainMenu::NativeDestruct()
 void UMainMenu::Show()
 {
 	SetVisibility(ESlateVisibility::Visible);
-	StartMainMenuBackgroundVideo();
+	StartMainMenuLightFlicker();
 }
 
 void UMainMenu::Hide()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	StopMainMenuBackgroundVideo();
+	StopMainMenuLightFlicker();
 }
 
 void UMainMenu::OnStartButtonClicked()
@@ -132,23 +110,6 @@ void UMainMenu::OnQuitButtonUnhovered()
 	SetButtonImageHovered(QuitButtonImage, false);
 }
 
-void UMainMenu::HandleMainMenuVideoOpened(FString OpenedUrl)
-{
-	if (MainMenuMediaPlayer)
-	{
-		MainMenuMediaPlayer->Play();
-	}
-}
-
-void UMainMenu::HandleMainMenuVideoEndReached()
-{
-	if (MainMenuMediaPlayer)
-	{
-		MainMenuMediaPlayer->Rewind();
-		MainMenuMediaPlayer->Play();
-	}
-}
-
 void UMainMenu::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const
 {
 	if (!ButtonImage)
@@ -159,36 +120,169 @@ void UMainMenu::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) cons
 	ButtonImage->SetColorAndOpacity(bIsHovered ? ButtonImageHoveredTint : ButtonImageNormalTint);
 }
 
-void UMainMenu::StartMainMenuBackgroundVideo()
+void UMainMenu::ResolveBackgroundLightsOffImage()
 {
-	if (BackgroundVideoImage && MainMenuVideoMaterial)
-	{
-		BackgroundVideoImage->SetBrushFromMaterial(MainMenuVideoMaterial);
-	}
-
-	if (!MainMenuMediaPlayer || !MainMenuMediaSource)
+	if (BackgroundVideoImage_1)
 	{
 		return;
 	}
 
-	MainMenuMediaPlayer->OnMediaOpened.AddUniqueDynamic(this, &UMainMenu::HandleMainMenuVideoOpened);
-	MainMenuMediaPlayer->OnEndReached.AddUniqueDynamic(this, &UMainMenu::HandleMainMenuVideoEndReached);
-	MainMenuMediaPlayer->SetLooping(true);
-
-	if (!MainMenuMediaPlayer->IsPlaying())
+	if (!WidgetTree)
 	{
-		MainMenuMediaPlayer->OpenSource(MainMenuMediaSource);
+		UE_LOG(LogTemp, Warning, TEXT("MainMenu: WidgetTree is null. Cannot resolve BackgroundVideoImage_1."));
+		return;
+	}
+
+	static const FName CandidateNames[] = {
+		TEXT("BackgroundVideoImage_1"),
+		TEXT("BackgroundImage_1"),
+		TEXT("BackgroundVideoImage1"),
+		TEXT("BackgroundImage1")
+	};
+
+	for (const FName CandidateName : CandidateNames)
+	{
+		if (UImage* FoundImage = Cast<UImage>(WidgetTree->FindWidget(CandidateName)))
+		{
+			BackgroundVideoImage_1 = FoundImage;
+			break;
+		}
+	}
+
+	if (!BackgroundVideoImage_1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MainMenu: BackgroundVideoImage_1 not found. Flicker is disabled. Check widget name and Is Variable."));
+		return;
+	}
+
+	BackgroundVideoImage_1->SetVisibility(ESlateVisibility::Hidden);
+	BackgroundVideoImage_1->SetRenderOpacity(1.0f);
+	BackgroundVideoImage_1->SetColorAndOpacity(FLinearColor::White);
+
+	// Ensure the lights-off image is rendered above the base background image.
+	if (UCanvasPanelSlot* LightsOffSlot = Cast<UCanvasPanelSlot>(BackgroundVideoImage_1->Slot))
+	{
+		if (UCanvasPanelSlot* BaseSlot = BackgroundVideoImage ? Cast<UCanvasPanelSlot>(BackgroundVideoImage->Slot) : nullptr)
+		{
+			LightsOffSlot->SetZOrder(BaseSlot->GetZOrder() + 1);
+		}
 	}
 }
 
-void UMainMenu::StopMainMenuBackgroundVideo()
+void UMainMenu::StartMainMenuLightFlicker()
 {
-	if (!MainMenuMediaPlayer)
+	if (!bEnableMainMenuLightFlicker || !BackgroundVideoImage_1)
+	{
+		if (!BackgroundVideoImage_1)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MainMenu: BackgroundVideoImage_1 is null. Flicker did not start."));
+		}
+		return;
+	}
+
+	if (MainMenuLightFlickerTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(MainMenuLightFlickerTickerHandle);
+		MainMenuLightFlickerTickerHandle.Reset();
+	}
+
+	bIsMainMenuLightFlickerRunning = false;
+	HideMainMenuLightsOffFrame();
+	bIsMainMenuLightFlickerRunning = true;
+	bIsLightsOffFrameVisible = false;
+	CurrentFlickerPhaseElapsed = 0.0f;
+	ScheduleNextMainMenuLightFlicker();
+
+	MainMenuLightFlickerTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UMainMenu::UpdateMainMenuLightFlicker));
+}
+
+void UMainMenu::StopMainMenuLightFlicker()
+{
+	bIsMainMenuLightFlickerRunning = false;
+
+	if (MainMenuLightFlickerTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(MainMenuLightFlickerTickerHandle);
+		MainMenuLightFlickerTickerHandle.Reset();
+	}
+
+	HideMainMenuLightsOffFrame();
+}
+
+void UMainMenu::ScheduleNextMainMenuLightFlicker()
+{
+	if (!bIsMainMenuLightFlickerRunning || !bEnableMainMenuLightFlicker || !BackgroundVideoImage_1 || GetVisibility() == ESlateVisibility::Collapsed)
 	{
 		return;
 	}
 
-	MainMenuMediaPlayer->OnMediaOpened.RemoveDynamic(this, &UMainMenu::HandleMainMenuVideoOpened);
-	MainMenuMediaPlayer->OnEndReached.RemoveDynamic(this, &UMainMenu::HandleMainMenuVideoEndReached);
-	MainMenuMediaPlayer->Close();
+	const float MinDelay = FMath::Max(0.01f, LightFlickerMinDelay);
+	const float MaxDelay = FMath::Max(MinDelay, LightFlickerMaxDelay);
+	CurrentFlickerPhaseDuration = FMath::FRandRange(MinDelay, MaxDelay);
+	CurrentFlickerPhaseElapsed = 0.0f;
+}
+
+void UMainMenu::ShowMainMenuLightsOffFrame()
+{
+	if (!bIsMainMenuLightFlickerRunning || !bEnableMainMenuLightFlicker || !BackgroundVideoImage_1 || GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return;
+	}
+
+	BackgroundVideoImage_1->SetRenderOpacity(LightFlickerLightsOffOpacity);
+	BackgroundVideoImage_1->SetColorAndOpacity(FLinearColor::White);
+	BackgroundVideoImage_1->SetVisibility(ESlateVisibility::Visible);
+	bIsLightsOffFrameVisible = true;
+
+	const float MinDuration = FMath::Max(0.01f, LightFlickerMinDuration);
+	const float MaxDuration = FMath::Max(MinDuration, LightFlickerMaxDuration);
+	CurrentFlickerPhaseDuration = FMath::FRandRange(MinDuration, MaxDuration);
+	CurrentFlickerPhaseElapsed = 0.0f;
+}
+
+void UMainMenu::HideMainMenuLightsOffFrame()
+{
+	if (BackgroundVideoImage_1)
+	{
+		BackgroundVideoImage_1->SetRenderOpacity(1.0f);
+		BackgroundVideoImage_1->SetColorAndOpacity(FLinearColor::White);
+		BackgroundVideoImage_1->SetVisibility(ESlateVisibility::Hidden);
+	}
+	bIsLightsOffFrameVisible = false;
+
+	if (bIsMainMenuLightFlickerRunning)
+	{
+		ScheduleNextMainMenuLightFlicker();
+	}
+}
+
+bool UMainMenu::UpdateMainMenuLightFlicker(float DeltaTime)
+{
+	if (!bIsMainMenuLightFlickerRunning)
+	{
+		return false;
+	}
+
+	if (!BackgroundVideoImage_1 || GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return true;
+	}
+
+	CurrentFlickerPhaseElapsed += DeltaTime;
+	if (CurrentFlickerPhaseElapsed < CurrentFlickerPhaseDuration)
+	{
+		return true;
+	}
+
+	if (bIsLightsOffFrameVisible)
+	{
+		HideMainMenuLightsOffFrame();
+	}
+	else
+	{
+		ShowMainMenuLightsOffFrame();
+	}
+
+	return true;
 }

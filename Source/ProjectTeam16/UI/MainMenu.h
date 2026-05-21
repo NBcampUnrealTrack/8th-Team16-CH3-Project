@@ -4,13 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Containers/Ticker.h"
 #include "MainMenu.generated.h"
 
 class UButton;
 class UImage;
-class UMaterialInterface;
-class UMediaPlayer;
-class UMediaSource;
 class UProgressBar;
 class UTextBlock;
 
@@ -20,8 +18,6 @@ class PROJECTTEAM16_API UMainMenu : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UMainMenu(const FObjectInitializer& ObjectInitializer);
-
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -53,15 +49,14 @@ protected:
 	UFUNCTION()
 	void OnQuitButtonUnhovered();
 
-	UFUNCTION()
-	void HandleMainMenuVideoOpened(FString OpenedUrl);
-
-	UFUNCTION()
-	void HandleMainMenuVideoEndReached();
-
 	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
-	void StartMainMenuBackgroundVideo();
-	void StopMainMenuBackgroundVideo();
+	void ResolveBackgroundLightsOffImage();
+	void StartMainMenuLightFlicker();
+	void StopMainMenuLightFlicker();
+	void ScheduleNextMainMenuLightFlicker();
+	void ShowMainMenuLightsOffFrame();
+	void HideMainMenuLightsOffFrame();
+	bool UpdateMainMenuLightFlicker(float DeltaTime);
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> StartButton;
@@ -82,6 +77,9 @@ protected:
 	TObjectPtr<UImage> BackgroundVideoImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> BackgroundVideoImage_1;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TitleText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -96,12 +94,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
 	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMediaPlayer> MainMenuMediaPlayer;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (AllowPrivateAccess = "true"))
+	bool bEnableMainMenuLightFlicker = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMediaSource> MainMenuMediaSource;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (ClampMin = "0.01", AllowPrivateAccess = "true"))
+	float LightFlickerMinDelay = 0.12f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMaterialInterface> MainMenuVideoMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (ClampMin = "0.01", AllowPrivateAccess = "true"))
+	float LightFlickerMaxDelay = 0.85f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (ClampMin = "0.01", AllowPrivateAccess = "true"))
+	float LightFlickerMinDuration = 0.035f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (ClampMin = "0.01", AllowPrivateAccess = "true"))
+	float LightFlickerMaxDuration = 0.18f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Flicker", meta = (ClampMin = "0.0", ClampMax = "1.0", AllowPrivateAccess = "true"))
+	float LightFlickerLightsOffOpacity = 1.0f;
+
+	bool bIsMainMenuLightFlickerRunning = false;
+	bool bIsLightsOffFrameVisible = false;
+	float CurrentFlickerPhaseElapsed = 0.0f;
+	float CurrentFlickerPhaseDuration = 0.0f;
+	FTSTicker::FDelegateHandle MainMenuLightFlickerTickerHandle;
 };
