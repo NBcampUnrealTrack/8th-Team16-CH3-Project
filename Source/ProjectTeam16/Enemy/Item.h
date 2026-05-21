@@ -30,6 +30,7 @@ public:
 protected:
 	
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(VisibleAnywhere, Category = "Settings")
 	TObjectPtr<USphereComponent> PickupRange; 
@@ -38,7 +39,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TObjectPtr<USoundBase> PickupSound;
 
+	bool bIsFollowingPlayer = false;
 	class AActor* TargetPlayer = nullptr;
+
+	UPROPERTY(EditAnywhere, Category="Settings")
+	float MoveSpeed = 5.0f;
 
 	UFUNCTION()
 	void OnOverlap(

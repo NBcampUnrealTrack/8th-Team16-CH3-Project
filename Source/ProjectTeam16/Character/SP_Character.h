@@ -66,7 +66,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USceneComponent* RightHandWeaponRoot;
 
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	USkeletalMeshComponent* Mesh1P;
 #pragma endregion
 
 #pragma region status
@@ -115,6 +116,13 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	FWeaponData RightWeaponData;
+
+	// 캐릭터 블루프린트에서 사격 애니메이션 몽타주 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* LeftHandFireMontage; // LeftArmSlot 지정 필수
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Weapon")
+	class UAnimMontage* RightHandFireMontage; // RightArmSlot 지정 필수
 
 private:
 	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
@@ -186,6 +194,8 @@ protected:
 	void SprintStart();                        //달리기 시작
 	void SprintEnd();                          //달리기 끝
 	void HandleStamina(float DeltaTime);       // 스테미너 처리 로직
+
+	
 
 	public:
 		UPROPERTY(BlueprintReadOnly, Category = "CubeOption")
