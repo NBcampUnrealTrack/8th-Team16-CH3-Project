@@ -14,14 +14,16 @@
 
 ASP_WeaponBase::ASP_WeaponBase()
 {
+    
+    //USceneComponent* DummyRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DummyRoot"));
+    //RootComponent = DummyRoot;
+
     WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-    RootComponent = WeaponMesh;
+    WeaponMesh->SetupAttachment(RootComponent); 
 
     CurrentStats.Damage = 10.0f;
     CurrentStats.Range = 5000.0f;
-
     WeaponMesh->SetMobility(EComponentMobility::Movable);
-
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 }
@@ -31,7 +33,6 @@ void ASP_WeaponBase::SetWeaponVisuals(UStaticMesh* NewMesh)
     if (WeaponMesh && NewMesh)
     {
         WeaponMesh->SetStaticMesh(NewMesh);
-
         WeaponMesh->SetHiddenInGame(false);
         WeaponMesh->SetVisibility(true);
     }
@@ -47,45 +48,43 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
     if (CurrentStats.FireSound) UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation);
     if (CurrentStats.MuzzleFlash) UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentStats.MuzzleFlash, WeaponMesh, MuzzleSocketName, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
 
-    // 데이터 테이블의 GunName 문자열 검사 대신, 캐릭터 소유 무기 타입 데이터를 기반으로 판별
     bool bIsShotgun = false;
+    ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner());
 
-   
-    // 데이터 테이블에서 가져온 고유 특수 능력 또는 스탯 상에서 샷건 범주에 속하는지 체크.
-    if (const ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
+    if (OwnerCharacter)
     {
-        // 왼손 무기인지 오른손 무기인지 확인하여 현재 무기의 장착 타입을 알아냅니다.
         EWeaponType CheckType = (OwnerCharacter->LeftHandWeapon == this) ? OwnerCharacter->LeftWeaponData.WeaponType : OwnerCharacter->RightWeaponData.WeaponType;
-
-        // 샷건 열거형에 해당하는 무기 타입들을 직접 명시합니다.
-        if (CheckType == EWeaponType::Shotgun ||
-            CheckType == EWeaponType::Blast)
+        if (CheckType == EWeaponType::Shotgun || CheckType == EWeaponType::Blast)
         {
             bIsShotgun = true;
         }
     }
 
-    int32 PelletCount = bIsShotgun ? 12 : 1;  // 샷건 총알개수
-
+    int32 PelletCount = bIsShotgun ? 12 : 1;
     float SpreadIntensity = bIsShotgun ? 0.22f : 0.0f;
+
+    float TotalDamageAccumulated = 0.0f;
+    FVector FirstHitLocation = FVector::ZeroVector;
+    FVector FirstHitNormal = FVector::ForwardVector;
+    bool bAnyZombieHit = false;
+    bool bFinalIsCritical = false;
+    bool bFinalIsX2Damage = false;
 
     for (int32 i = 0; i < PelletCount; i++)
     {
         FVector FireDirection = ForwardVector;
         if (bIsShotgun)
         {
-            // 각 탄환(Pellet)마다 완전히 무작위의 고유한 궤적 방향 벡터를 계산합니다.
             FireDirection.X += FMath::FRandRange(-SpreadIntensity, SpreadIntensity);
             FireDirection.Y += FMath::FRandRange(-SpreadIntensity, SpreadIntensity);
             FireDirection.Z += FMath::FRandRange(-SpreadIntensity, SpreadIntensity);
             FireDirection.Normalize();
         }
 
-        // 사거리 증가가 적용되어 확장된 Range 스탯 반영
         float FireRange = (CurrentStats.Range > 0.0f) ? CurrentStats.Range : 5000.0f;
         FVector EndLocation = MuzzleLocation + (FireDirection * FireRange);
 
-        // 관통(Penetration) 능력이 켜져 있다면 단일 레이가 아닌 다중 레이트레이스를 돌려야 합니다.
+        // 관통(Penetration) 무기 로직
         if (MyAbility == EWeaponSpecialAbility::Penetration)
         {
             TArray<FHitResult> HitResults;
@@ -96,7 +95,6 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
             bool bMultiHit = GetWorld()->LineTraceMultiByChannel(HitResults, MuzzleLocation, EndLocation, ECC_Visibility, Params);
             FVector FinalTraceEnd = (bMultiHit && HitResults.Num() > 0) ? HitResults.Last().ImpactPoint : EndLocation;
 
-            // 탄도 궤적 생성
             if (CurrentStats.TracerEffect)
             {
                 UNiagaraComponent* TracerComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.TracerEffect, MuzzleLocation, FRotator::ZeroRotator);
@@ -110,30 +108,6 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
             if (bMultiHit && HitResults.Num() > 0)
             {
                 AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
-                float FinalDamage = CurrentStats.Damage;
-                bool bIsCritical = false; // 크리티컬 여부 저장
-                bool bIsX2Damage = false;
-
-                if (ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
-                {
-                    // 1. 크리티컬 판정
-                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
-                    {
-                        bIsCritical = true;
-                        float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
-                        FinalDamage *= CritMultiplier;
-                    }
-
-                    // 2. 2배 피해 판정 (추가됨)
-                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
-                    {
-                        bIsX2Damage = true;
-                        FinalDamage *= 2.0f;
-                    }
-
-                    FinalDamage *= OwnerCharacter->AttackPower;
-                }
-
                 TArray<AActor*> HitActorsThisTrace;
 
                 for (const FHitResult& Hit : HitResults)
@@ -144,43 +118,84 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                         if (!HitActorsThisTrace.Contains(HitActor))
                         {
                             HitActorsThisTrace.Add(HitActor);
+
+                            float FinalDamage = CurrentStats.Damage;
+                            bool bIsCritical = false;
+                            bool bIsX2Damage = false;
+
+                            // 대입 연산을 if문 밖으로 완전히 분리하여 에러를 원천 차단합니다.
+                            OwnerCharacter = Cast<ASP_Character>(GetOwner());
+                            if (OwnerCharacter)
+                            {
+                                if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
+                                {
+                                    bIsCritical = true;
+                                    float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
+                                    FinalDamage *= CritMultiplier;
+                                }
+
+                                if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
+                                {
+                                    bIsX2Damage = true;
+                                    FinalDamage *= 2.0f;
+                                }
+
+                                FinalDamage *= OwnerCharacter->AttackPower;
+                            }
+
+                            // 오브젝트/사물 포함 일단 무조건 대미지 먼저 적용
                             UGameplayStatics::ApplyDamage(HitActor, FinalDamage, DamageInstigator, this, UDamageType::StaticClass());
 
-#if ENABLE_WEAPON_DEBUG
-                            DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 15.0f, 8, FColor::Purple, false, 2.0f, 0, 1.5f);
+                            // 모든 오브젝트 공통 타격 이펙트 및 사운드 출력
+                            if (CurrentStats.ImpactEffect)
+                                UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+                            if (CurrentStats.ImpactSound)
+                                UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint);
 
-                            FActorSpawnParameters TextSpawnParams;
-                            TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-                            FVector TextSpawnLocation = Hit.ImpactPoint + (Hit.ImpactNormal * 10.0f) + FVector(FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(0.f, 15.f));
-
-                            ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
-                            if (DamagePopup)
+                            // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
+                            if (HitActor->GetName().Contains(TEXT("Zombie")))
                             {
-                                if (bIsCritical && bIsX2Damage)
+                                bAnyZombieHit = true;
+                                TotalDamageAccumulated += FinalDamage;
+
+                                if (bIsCritical) bFinalIsCritical = true;
+                                if (bIsX2Damage) bFinalIsX2Damage = true;
+
+                                if (FirstHitLocation.IsZero())
                                 {
-                                    DamagePopup->SetTranscendenceEffect();
+                                    FirstHitLocation = Hit.ImpactPoint;
+                                    FirstHitNormal = Hit.ImpactNormal;
                                 }
-                                else if (bIsX2Damage)
+
+                                // 권총(단발 무기) 데미지 텍스트 실시간 팝업 출력
+                                if (!bIsShotgun)
                                 {
-                                    DamagePopup->SetX2DamageEffect();
-                                }
-                                else if (bIsCritical)
-                                {
-                                    DamagePopup->SetCriticalEffect();
+#if ENABLE_WEAPON_DEBUG
+                                    DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 15.0f, 8, FColor::Purple, false, 2.0f, 0, 1.5f);
+
+                                    FActorSpawnParameters TextSpawnParams;
+                                    TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                                    FVector TextSpawnLocation = Hit.ImpactPoint + (Hit.ImpactNormal * 10.0f) + FVector(FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(0.f, 15.f));
+
+                                    // ZeroRotator 주입 (텍스트의 Tick에서 빌보드 정렬)
+                                    ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
+                                    if (DamagePopup)
+                                    {
+                                        DamagePopup->SetDamageValue(FinalDamage);
+
+                                        if (bIsCritical && bIsX2Damage) DamagePopup->SetTranscendenceEffect();
+                                        else if (bIsX2Damage) DamagePopup->SetX2DamageEffect();
+                                        else if (bIsCritical) DamagePopup->SetCriticalEffect();
+                                    }
+#endif
                                 }
                             }
-#endif
                         }
                     }
-
-                    if (CurrentStats.ImpactEffect)
-                        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
-                    if (CurrentStats.ImpactSound)
-                        UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint);
                 }
             }
         }
-        // 관통 능력이 없을 때는 단일 피격(Single Trace) 구조
+        // 관통 능력이 없을 때 (Single Trace) 구조
         else
         {
             FHitResult HitResult;
@@ -203,65 +218,98 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
 
             if (bHit && HitResult.GetActor())
             {
-                    AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
-                    float FinalDamage = CurrentStats.Damage;
-                    bool bIsCritical = false;
-                    bool bIsX2Damage = false;
+                AActor* HitActor = HitResult.GetActor();
+                AController* DamageInstigator = GetInstigatorController() ? GetInstigatorController() : (GetOwner() ? GetOwner()->GetInstigatorController() : nullptr);
+                float FinalDamage = CurrentStats.Damage;
+                bool bIsCritical = false;
+                bool bIsX2Damage = false;
 
-                    if (ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner()))
+                // 대입 연산을 if문 밖으로 완전히 분리하여 에러를 원천 차단합니다.
+                OwnerCharacter = Cast<ASP_Character>(GetOwner());
+                if (OwnerCharacter)
+                {
+                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
                     {
-                        // 1. 크리티컬 판정
-                        if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeCritRate)
-                        {
-                            bIsCritical = true;
-                            float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
-                            FinalDamage *= CritMultiplier;
-                        }
-
-                        // 2. 2배 피해 판정 (추가됨)
-                        if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
-                        {
-                            bIsX2Damage = true;
-                            FinalDamage *= 2.0f;
-                        }
-
-                        FinalDamage *= OwnerCharacter->AttackPower;
+                        bIsCritical = true;
+                        float CritMultiplier = 1.5f + (OwnerCharacter->CubeCritDMG / 100.0f);
+                        FinalDamage *= CritMultiplier;
                     }
 
-                    UGameplayStatics::ApplyDamage(HitResult.GetActor(), FinalDamage, DamageInstigator, this, UDamageType::StaticClass());
-
-#if ENABLE_WEAPON_DEBUG
-                    DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 12.0f, 8, FColor::Red, false, 2.0f, 0, 1.0f);
-
-                    FActorSpawnParameters TextSpawnParams;
-                    TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-                    FVector TextSpawnLocation = HitResult.ImpactPoint + (HitResult.ImpactNormal * 10.0f) + FVector(FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(0.f, 15.f));
-
-                    ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
-                    if (DamagePopup)
+                    if (FMath::FRandRange(0.0f, 100.0f) <= OwnerCharacter->CubeX2Chance)
                     {
-                        DamagePopup->SetDamageValue(FinalDamage);
-
-                        if (bIsCritical && bIsX2Damage)
-                        {
-                            DamagePopup->SetTranscendenceEffect();
-                        }
-                        else if (bIsX2Damage)
-                        {
-                            DamagePopup->SetX2DamageEffect();
-                        }
-                        else if (bIsCritical)
-                        {
-                            DamagePopup->SetCriticalEffect();
-                        }
+                        bIsX2Damage = true;
+                        FinalDamage *= 2.0f;
                     }
-#endif
+
+                    FinalDamage *= OwnerCharacter->AttackPower;
+                }
+
+                // 오브젝트/사물 포함 일단 무조건 대미지 먼저 적용
+                UGameplayStatics::ApplyDamage(HitActor, FinalDamage, DamageInstigator, this, UDamageType::StaticClass());
+
+                // 모든 오브젝트 공통 타격 이펙트 및 사운드 출력
                 if (CurrentStats.ImpactEffect)
                     UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
                 if (CurrentStats.ImpactSound)
                     UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, HitResult.ImpactPoint);
-                
+
+                // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
+                if (HitActor->GetName().Contains(TEXT("Zombie")))
+                {
+                    bAnyZombieHit = true;
+                    TotalDamageAccumulated += FinalDamage;
+                    if (bIsCritical) bFinalIsCritical = true;
+                    if (bIsX2Damage) bFinalIsX2Damage = true;
+
+                    if (FirstHitLocation.IsZero())
+                    {
+                        FirstHitLocation = HitResult.ImpactPoint;
+                        FirstHitNormal = HitResult.ImpactNormal;
+                    }
+
+                    // 권총(단발 무기) 팝업 처리
+                    if (!bIsShotgun)
+                    {
+#if ENABLE_WEAPON_DEBUG
+                        DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 12.0f, 8, FColor::Red, false, 2.0f, 0, 1.0f);
+
+                        FActorSpawnParameters TextSpawnParams;
+                        TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                        FVector TextSpawnLocation = HitResult.ImpactPoint + (HitResult.ImpactNormal * 10.0f) + FVector(FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(-10.f, 10.f), FMath::FRandRange(0.f, 15.f));
+
+                        ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
+                        if (DamagePopup)
+                        {
+                            DamagePopup->SetDamageValue(FinalDamage);
+
+                            if (bIsCritical && bIsX2Damage) DamagePopup->SetTranscendenceEffect();
+                            else if (bIsX2Damage) DamagePopup->SetX2DamageEffect();
+                            else if (bIsCritical) DamagePopup->SetCriticalEffect();
+                        }
+#endif
+                    }
+                }
             }
         }
+    }
+
+    // 샷건 최종 합산 팝업 출격
+    if (bIsShotgun && bAnyZombieHit)
+    {
+#if ENABLE_WEAPON_DEBUG
+        FActorSpawnParameters TextSpawnParams;
+        TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        FVector TextSpawnLocation = FirstHitLocation + (FirstHitNormal * 15.0f);
+
+        ASP_DamageText* DamagePopup = GetWorld()->SpawnActor<ASP_DamageText>(ASP_DamageText::StaticClass(), TextSpawnLocation, FRotator::ZeroRotator, TextSpawnParams);
+        if (DamagePopup)
+        {
+            DamagePopup->SetDamageValue(TotalDamageAccumulated);
+
+            if (bFinalIsCritical && bFinalIsX2Damage) DamagePopup->SetTranscendenceEffect();
+            else if (bFinalIsX2Damage) DamagePopup->SetX2DamageEffect();
+            else if (bFinalIsCritical) DamagePopup->SetCriticalEffect();
+        }
+#endif
     }
 }

@@ -28,7 +28,7 @@ ASP_Character::ASP_Character()
 	FPSCamera->SetupAttachment(GetRootComponent());
 	FPSCamera->bUsePawnControlRotation = true;
 
-	// [질문자님 최적화 반영] 불필요한 3인칭 기본 메쉬 숨김 및 콜리전 해제
+	//  불필요한 3인칭 기본 메쉬 숨김 및 콜리전 해제
 	if (GetMesh())
 	{
 		GetMesh()->SetHiddenInGame(true);
@@ -66,48 +66,6 @@ ASP_Character::ASP_Character()
 void ASP_Character::BeginPlay()
 {
 	Super::BeginPlay();
-
-	TArray<USkeletalMeshComponent*> SkeletalMeshes;
-	GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
-
-	for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
-	{
-		if (MeshComp)
-		{
-			FString CompName = MeshComp->GetName();
-			if (CompName.Contains(TEXT("CharacterMesh1")) || CompName.Contains(TEXT("Mesh1P")))
-			{
-				Mesh1P = MeshComp;
-				UE_LOG(LogTemp, Warning, TEXT("1인칭 팔 메시이름: %s"), *CompName);
-				break;
-			}
-		}
-	}
-
-	if (!Mesh1P && SkeletalMeshes.Num() > 1)
-	{
-		for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
-		{
-			if (MeshComp && MeshComp != GetMesh())
-			{
-				Mesh1P = MeshComp;
-				UE_LOG(LogTemp, Warning, TEXT("1인칭 팔 강제 지정 이름: %s"), *MeshComp->GetName());
-				break;
-			}
-		}
-	}
-
-	if (Mesh1P)
-	{
-		Mesh1P->SetHiddenInGame(false);
-		Mesh1P->SetVisibility(true);
-		Mesh1P->SetOnlyOwnerSee(true);
-		Mesh1P->CastShadow = false;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Fatal, TEXT("블루프린트에서 1인칭 컴포넌트를 찾지 못했습니다"));
-	}
 
 	CurrentHealth = MaxHealth;
 	CurrentStamina = MaxStamina;
@@ -336,38 +294,24 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 
 void ASP_Character::AttachWeaponToHand(ASP_WeaponBase* WeaponToAttach, bool bIsRightHand)
 {
-	// [질문자님 자산 완벽 복구] 1인칭 팔 뼈 소켓에 결합 및 소유자 전용 시야 제어 로직
 	if (!WeaponToAttach) return;
 
-	if (!Mesh1P)
-	{
-		TArray<USkeletalMeshComponent*> SkeletalMeshes;
-		GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
-		for (USkeletalMeshComponent* MeshComp : SkeletalMeshes)
-		{
-			if (MeshComp && MeshComp != GetMesh())
-			{
-				Mesh1P = MeshComp;
-				break;
-			}
-		}
-	}
+	// 카메라 밑의 WeaponRoot 에셋 좌표만 바라보게
+	USceneComponent* AttachRoot = bIsRightHand ? RightHandWeaponRoot : LeftHandWeaponRoot;
+	if (!AttachRoot) return;
 
-	if (!Mesh1P)
-	{
-		UE_LOG(LogTemp, Error, TEXT("1인칭 팔 메쉬 획득 실패"));
-		return;
-	}
-
-	FName TargetSocket = bIsRightHand ? RightHandSocketName : LeftHandSocketName;
 	FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, false);
-
-	WeaponToAttach->AttachToComponent(Mesh1P, AttachRules, TargetSocket);
+	WeaponToAttach->AttachToComponent(AttachRoot, AttachRules);
 
 	if (UPrimitiveComponent* WeaponRoot = Cast<UPrimitiveComponent>(WeaponToAttach->GetRootComponent()))
 	{
 		WeaponRoot->SetOnlyOwnerSee(true);
 	}
+
+	WeaponToAttach->SetActorRelativeLocation(FVector::ZeroVector);
+	// 위치 원점 정렬
+	//WeaponToAttach->SetActorRelativeLocation(FVector::ZeroVector);
+	//WeaponToAttach->SetActorRelativeRotation(FRotator::ZeroRotator);
 }
 
 void ASP_Character::ApplyAbilityToHandWeapon(EWeaponSpecialAbility NewAbility, bool bIsRightHand)
@@ -447,24 +391,15 @@ void ASP_Character::FireLeftHand()
 {
 	if (bIsDead || !LeftHandWeapon) return;
 
-	// 사격 명령 전달
+	// 사격 명령 실행
 	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
 
-	// 큐브 공속 스탯 연동 사격 애니메이션 몽타주 배속 구동 로직
-	if (UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance())
-	{
-		if (LeftHandFireMontage && !AnimInstance->Montage_IsPlaying(LeftHandFireMontage))
-		{
-			float AnimPlayRate = 1.0f + (CubeFireRateBonus / 100.0f);
-			AnimInstance->Montage_Play(LeftHandFireMontage, AnimPlayRate);
-		}
-	}
 
-	//고정형 상대위치 반동 주입
-	USceneComponent* WeaponRootComp = LeftHandWeapon->GetRootComponent();
-	if (WeaponRootComp)
+
+	// 무기 컴포넌트 기반 반동 
+	if (USceneComponent* WeaponRootComp = LeftHandWeapon->GetRootComponent())
 	{
-		WeaponRootComp->SetRelativeLocation(FVector(-RecoilIntensity, 0.0f, 0.0f));
+		WeaponRootComp->SetRelativeLocation(FVector(0.0f, 15.0f, 2.0f));
 	}
 
 }
@@ -473,27 +408,14 @@ void ASP_Character::FireRightHand()
 {
 	if (bIsDead || !RightHandWeapon) return;
 
-	// 사격 명령 전달
+	// 사격 명령 실행
 	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
 
-	
-	// 오른손 무기 사격 애니메이션 몽타주 배속 구동 로직
-	if (UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance())
+	// 샷건용 반동 주입
+	if (USceneComponent* WeaponRootComp = RightHandWeapon->GetRootComponent())
 	{
-		if (RightHandFireMontage && !AnimInstance->Montage_IsPlaying(RightHandFireMontage))
-		{
-			float AnimPlayRate = 1.0f + (CubeFireRateBonus / 100.0f);
-			AnimInstance->Montage_Play(RightHandFireMontage, AnimPlayRate);
-		}
+		WeaponRootComp->SetRelativeLocation(FVector(0.0f, 35.0f, 8.0f));
 	}
-
-	//오른손 무기 고정형 로컬 상대위치 제어 반동 주입
-	USceneComponent* WeaponRootComp = RightHandWeapon->GetRootComponent();
-	if (WeaponRootComp)
-	{
-		WeaponRootComp->SetRelativeLocation(FVector(-RecoilIntensity, 0.0f, 0.0f));
-	}
-	
 }
 
 void ASP_Character::Move(const FInputActionValue& Value)
