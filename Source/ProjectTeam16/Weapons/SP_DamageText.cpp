@@ -24,11 +24,32 @@ void ASP_DamageText::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // 💡 매 프레임 글씨를 위로 둥둥 띄웁니다.
+    // 기존 기획하신 위로 둥둥 뜨는 로직 유지
     FVector NewLocation = GetActorLocation() + (FVector::UpVector * UpSpeed * DeltaTime);
     SetActorLocation(NewLocation);
 
-    // 수명 관리 후 자동 소멸
+    //  빌보드(Billboard) 연출 코드 추가
+    if (UWorld* World = GetWorld())
+    {
+        // 월드에서 현재 게임을 플레이 중인 1번 플레이어의 컨트롤러를 찾습니다.
+        if (APlayerController* PC = World->GetFirstPlayerController())
+        {
+            // 플레이어를 담당하는 카메라 매니저가 있다면
+            if (PC->PlayerCameraManager)
+            {
+                // 실시간 카메라 회전값을 안전하게 가로챕니다.
+                FRotator CameraRotation = PC->PlayerCameraManager->GetCameraRotation();
+
+                // 가독성을 위해 글씨가 위아래(Pitch, Roll)로 눕지 않고 좌우(Yaw)로만 정면을 보게 세팅합니다.
+                FRotator BillboardRotation = FRotator(CameraRotation.Pitch, CameraRotation.Yaw + 180.0f, CameraRotation.Roll);
+
+                // 내 텍스트 액터의 각도를 카메라 정면으로 강제 일치시킵니다.
+                SetActorRotation(BillboardRotation);
+            }
+        }
+    }
+    
+     // 수명 관리 로직 유지
     Lifetime -= DeltaTime;
     if (Lifetime <= 0.0f)
     {
