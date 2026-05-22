@@ -119,3 +119,4 @@ struct FGunStats : public FTableRowBase
 
    
 };
+

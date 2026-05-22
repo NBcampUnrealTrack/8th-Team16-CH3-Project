@@ -256,8 +256,17 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 			AttachWeaponToHand(NewWeapon, bIsRightHand);
 			if (GunDataTable)
 			{
-				FString RowNameString = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)TargetData.WeaponType);
+				// 💡 동일하게 "무기이름_강화레벨" 형식으로 테이블 직통 조회
+				FString BaseName = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)TargetData.WeaponType);
+				FString RowNameString = FString::Printf(TEXT("%s_%d"), *BaseName, TargetData.EnhanceLevel);
+
 				FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("HandWeaponUpdate"));
+
+				if (!RowData)
+				{
+					FString FallbackRow = FString::Printf(TEXT("%s_1"), *BaseName);
+					RowData = GunDataTable->FindRow<FGunStats>(FName(*FallbackRow), TEXT("HandWeaponUpdateFallback"));
+				}
 
 				if (RowData)
 				{
@@ -379,10 +388,10 @@ void ASP_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASP_Character::SprintEnd);
 
 		if (LeftFireAction)
-			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Started, this, &ASP_Character::FireLeftHand);
+			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireLeftHand);
 
 		if (RightFireAction)
-			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Started, this, &ASP_Character::FireRightHand);
+			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Triggered, this, &ASP_Character::FireRightHand);
 
 	}
 }
@@ -391,10 +400,30 @@ void ASP_Character::FireLeftHand()
 {
 	if (bIsDead || !LeftHandWeapon) return;
 
-	// 사격 명령 실행
+	//  현재 월드 시간 가져오기
+	float CurrentTime = GetWorld()->GetTimeSeconds();
+
+	//  무기 기본 딜레이(FireRate) 가져오기
+	float FinalDelay = LeftHandWeapon->GetWeaponStats().FireRate;
+
+	// 큐브 보너스 연사속도 반영 (예: 보너스가 30%면 딜레이를 1 / 1.3배로 압축)
+	if (CubeFireRateBonus > 0.0f)
+	{
+		FinalDelay /= (1.0f + (CubeFireRateBonus / 100.0f));
+	}
+
+	//  안전장치 (딜레이가 너무 무한정 0이 되는 것 방지)
+	if (FinalDelay < 0.05f) FinalDelay = 0.05f;
+
+	//  실시간 쿨타임 검사: 마지막으로 쏜 시간으로부터 최종 딜레이만큼 지났는지 확인
+	if (CurrentTime - LastLeftFireTime < FinalDelay)
+	{
+		return; // 아직 딜레이 중이면 사격 취소
+	}
+
+	// 6. 조건 통과 시 사격 실행 및 타임스탬프 갱신
 	LeftHandWeapon->Fire(FPSCamera->GetForwardVector());
-
-
+	LastLeftFireTime = CurrentTime;
 
 	// 무기 컴포넌트 기반 반동 
 	if (USceneComponent* WeaponRootComp = LeftHandWeapon->GetRootComponent())
@@ -408,9 +437,27 @@ void ASP_Character::FireRightHand()
 {
 	if (bIsDead || !RightHandWeapon) return;
 
-	// 사격 명령 실행
-	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
+	// 실시간 월드 시간 및 딜레이 계산
+	float CurrentTime = GetWorld()->GetTimeSeconds();
+	float FinalDelay = RightHandWeapon->GetWeaponStats().FireRate;
 
+	// 큐브 보너스 연사속도 반영
+	if (CubeFireRateBonus > 0.0f)
+	{
+		FinalDelay /= (1.0f + (CubeFireRateBonus / 100.0f));
+	}
+
+	if (FinalDelay < 0.05f) FinalDelay = 0.05f;
+
+	// 오른손 실시간 쿨타임 검사
+	if (CurrentTime - LastRightFireTime < FinalDelay)
+	{
+		return; // 아직 샷건 딜레이 중이면 사격 취소
+	}
+
+	// 사격 실행 및 타임스탬프 갱신
+	RightHandWeapon->Fire(FPSCamera->GetForwardVector());
+	LastRightFireTime = CurrentTime;
 	// 샷건용 반동 주입
 	if (USceneComponent* WeaponRootComp = RightHandWeapon->GetRootComponent())
 	{
@@ -534,8 +581,19 @@ void ASP_Character::ApplyCubeOptions(const TArray<FOptionLine>& Options)
 		{
 			if (!Weapon || !GunDataTable) return;
 
-			FString RowName = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)WeaponData.WeaponType);
-			FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowName), TEXT("CubeOption"));
+			// "무기이름_강화레벨" 형식으로 데이터 테이블 행을 찾습니다.
+		    // 예: Pistol 무기이고 3강이면 행 이름은 "Pistol_3"이 됩니다.
+			FString BaseName = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)WeaponData.WeaponType);
+			FString RowNameString = FString::Printf(TEXT("%s_%d"), *BaseName, WeaponData.EnhanceLevel);
+
+			FGunStats* RowData = GunDataTable->FindRow<FGunStats>(FName(*RowNameString), TEXT("CubeOption"));
+
+			// [안전장치] 만약 팀원이 실수로 8강 행을 안 만들었다면 기본 1강 데이터라도 가져옵니다.
+			if (!RowData)
+			{
+				FString FallbackRow = FString::Printf(TEXT("%s_1"), *BaseName);
+				RowData = GunDataTable->FindRow<FGunStats>(FName(*FallbackRow), TEXT("CubeOptionFallback"));
+			}
 
 			if (!RowData) return;
 
@@ -553,10 +611,14 @@ void ASP_Character::ApplyCubeOptions(const TArray<FOptionLine>& Options)
 			UpdatedStats.FireRate *= (1.0f - CubeFireRateBonus / 100.0f);
 			UpdatedStats.Range *= (1.0f + CubeRangeBonus / 100.0f);
 
-			// 관통 능력 적용
+			/* 관통 능력 적용
 			if (bCubePenetration)
-				Weapon->SetSpecialAbility(EWeaponSpecialAbility::Penetration);
-
+		    Weapon->SetSpecialAbility(EWeaponSpecialAbility::Penetration);
+			Weapon->SetWeaponStats(UpdatedStats);
+			*/
+			
+			// 고유 능력을 관통으로 덮어쓰지 않고 플래그 유지
+			Weapon->SetSpecialAbility(WeaponData.ActiveAbility);
 			Weapon->SetWeaponStats(UpdatedStats);
 		};
 
@@ -600,22 +662,24 @@ bool ASP_Character::HasWeapon(EWeaponType WeaponType) const
 
 void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
 {
-	auto EnhanceSlot = [this](FWeaponData& SlotData, EWeaponType TargetType) {
-		if (SlotData.WeaponType == TargetType)
-		{
-			if (SlotData.EnhanceLevel < MAX_UPGRADE_LEVEL)
-			{
-				SlotData.EnhanceLevel++;
-				UE_LOG(LogTemp, Log, TEXT("%d Weapon Enhanced to Level %d"), (int32)TargetType, SlotData.EnhanceLevel);
-			}
-		}
-		};
+	bool bEnhancedLeft = false;
+	bool bEnhancedRight = false;
 
-	EnhanceSlot(LeftWeaponData, WeaponType);
-	EnhanceSlot(RightWeaponData, WeaponType);
+	// 안전하게 데이터 분기 검사
+	if (LeftWeaponData.WeaponType == WeaponType && LeftWeaponData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+	{
+		LeftWeaponData.EnhanceLevel++;
+		bEnhancedLeft = true;
+	}
+	else if (RightWeaponData.WeaponType == WeaponType && RightWeaponData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+	{
+		RightWeaponData.EnhanceLevel++;
+		bEnhancedRight = true;
+	}
 
-	// 무기 비주얼이나 스탯 갱신
-	SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == WeaponType ? false : true);
+	// 버그 수정 정확한 타겟 손을 찾아서 무기 스탯 리로드
+	if (bEnhancedLeft) SpawnOrUpdateHandWeapon(false);
+	if (bEnhancedRight) SpawnOrUpdateHandWeapon(true);
 }
 
 // 💡 [신규] 권총 진화 조건 체크: 기본 권총(Pistol) 8강 이고 최대 체력 레벨이 8인 경우
@@ -639,19 +703,37 @@ void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon
 	// 권총 조합 (진화)
 	if (MainWeapon == EWeaponType::Pistol && CanEvolvePistol())
 	{
-		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Pistol) ? LeftWeaponData : RightWeaponData;
-		TargetSlot.WeaponType = EWeaponType::Requiem; // 진화형 권총으로 변경
-		TargetSlot.EnhanceLevel = 0; // 진화 후 강화 단계 초기화
-		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Requiem ? false : true);
+		if (LeftWeaponData.WeaponType == EWeaponType::Pistol)
+		{
+			LeftWeaponData.WeaponType = EWeaponType::Requiem;
+			LeftWeaponData.EnhanceLevel = 1; // 진화 무기는 1레벨 스탯부터 다시 시작
+			SpawnOrUpdateHandWeapon(false);
+		}
+		else if (RightWeaponData.WeaponType == EWeaponType::Pistol)
+		{
+			RightWeaponData.WeaponType = EWeaponType::Requiem;
+			RightWeaponData.EnhanceLevel = 1;
+			SpawnOrUpdateHandWeapon(true);
+		}
 		UE_LOG(LogTemp, Log, TEXT("Pistol Evolved into Requiem!"));
 	}
+
 	// 샷건 조합 (진화)
 	else if (MainWeapon == EWeaponType::Shotgun && CanEvolveShotgun())
 	{
-		FWeaponData& TargetSlot = (LeftWeaponData.WeaponType == EWeaponType::Shotgun) ? LeftWeaponData : RightWeaponData;
-		TargetSlot.WeaponType = EWeaponType::Blast; // 진화형 샷건으로 변경
-		TargetSlot.EnhanceLevel = 0;
-		SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == EWeaponType::Blast ? false : true);
+		if (LeftWeaponData.WeaponType == EWeaponType::Shotgun)
+		{
+			LeftWeaponData.WeaponType = EWeaponType::Blast;
+			LeftWeaponData.EnhanceLevel = 1;
+			SpawnOrUpdateHandWeapon(false);
+		}
+		else if (RightWeaponData.WeaponType == EWeaponType::Shotgun)
+		{
+			RightWeaponData.WeaponType = EWeaponType::Blast;
+			RightWeaponData.EnhanceLevel = 1;
+			SpawnOrUpdateHandWeapon(true);
+		}
 		UE_LOG(LogTemp, Log, TEXT("Shotgun Evolved into Blast!"));
 	}
+	SyncHUDValues();
 }

@@ -20,6 +20,9 @@ public:
     // 무기 데이터 설정 함수
     void SetWeaponStats(FGunStats NewStats) { CurrentStats = NewStats; }
 
+    // 추가 캐릭터가 무기의 현재 실시간 스탯을 읽어갈 수 있도록 겟터 함수 추가
+    FGunStats GetWeaponStats() const { return CurrentStats; }
+
     // 메쉬를 동적으로 바꾸기 위한 함수
     void SetWeaponVisuals(UStaticMesh* NewMesh);
 

@@ -51,6 +51,9 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
     bool bIsShotgun = false;
     ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner());
 
+    // 버그 수정 무기 자체 능력이 관통이거나, 캐릭터 큐브 옵션으로 관통을 획득한 경우 둘 다 인정
+    bool bHasPenetration = (MyAbility == EWeaponSpecialAbility::Penetration) || (OwnerCharacter && OwnerCharacter->bCubePenetration);
+
     if (OwnerCharacter)
     {
         EWeaponType CheckType = (OwnerCharacter->LeftHandWeapon == this) ? OwnerCharacter->LeftWeaponData.WeaponType : OwnerCharacter->RightWeaponData.WeaponType;
@@ -61,7 +64,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
     }
 
     int32 PelletCount = bIsShotgun ? 12 : 1;
-    float SpreadIntensity = bIsShotgun ? 0.22f : 0.0f;
+    float SpreadIntensity = bIsShotgun ? CurrentStats.WeaponSpread : 0.0f;
 
     float TotalDamageAccumulated = 0.0f;
     FVector FirstHitLocation = FVector::ZeroVector;
@@ -153,7 +156,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                                 UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint);
 
                             // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
-                            if (HitActor->GetName().Contains(TEXT("Zombie")))
+                            if (HitActor->ActorHasTag(TEXT("Zombie")))
                             {
                                 bAnyZombieHit = true;
                                 TotalDamageAccumulated += FinalDamage;
@@ -254,8 +257,8 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                     UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, HitResult.ImpactPoint);
 
                 // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
-                if (HitActor->GetName().Contains(TEXT("Zombie")))
-                {
+                if (HitActor->ActorHasTag(TEXT("Zombie")))
+                {                 
                     bAnyZombieHit = true;
                     TotalDamageAccumulated += FinalDamage;
                     if (bIsCritical) bFinalIsCritical = true;

@@ -101,6 +101,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	float RecoilIntensity = 5.0f;
 
+	// 무기 강화 시 1레벨당 가산될 대미지 증가율 (%)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatUpgrade", meta = (ClampMin = "0.0", ClampMax = "200.0"))
+	float DamageIncreasePerLevel = 25.0f; // 기본값: 25%씩 증가
+
+	//  무기 강화 시 1레벨당 줄어들 사격 딜레이(FireRate) 단축률 (%)
+	//  10%를 넣으면 레벨업마다 기존 딜레이가 0.9배(90%)로 단축되어 총이 빨라집니다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatUpgrade", meta = (ClampMin = "0.0", ClampMax = "50.0"))
+	float FireRateDecreasePerLevel = 10.0f; // 기본값: 10%씩 단축
+
 public:
 	//양손 무기 액터 포인터
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
@@ -125,6 +134,11 @@ private:
 
 	const FName LeftHandSocketName = FName("Pistol_Socket");
 	const FName RightHandSocketName = FName("Shotgun_Socket");
+
+	protected:
+		// 왼손과 오른손 무기의 마지막 사격 시간 기록 (실시간 쿨타임 계산용)
+		float LastLeftFireTime = 0.0f;
+		float LastRightFireTime = 0.0f;
 #pragma endregion	
 
 
