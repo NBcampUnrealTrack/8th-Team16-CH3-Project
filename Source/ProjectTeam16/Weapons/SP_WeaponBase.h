@@ -34,6 +34,7 @@ public:
         }
     }
 
+    void EnhanceDamage(float Multiplier = 1.15f);
 protected:
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* WeaponMesh;

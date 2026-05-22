@@ -280,6 +280,12 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 						UpdatedStats.Range *= 1.8f; // 사거리 대폭 증가
 					}
 
+					if (TargetData.EnhanceLevel > 0)
+					{
+						float EnhanceMultiplier = FMath::Pow(1.15f, TargetData.EnhanceLevel);
+						UpdatedStats.Damage *= EnhanceMultiplier;
+					}
+
 					NewWeapon->SetWeaponVisuals(UpdatedStats.WeaponMesh);
 					NewWeapon->SetWeaponStats(UpdatedStats);
 
@@ -600,22 +606,33 @@ bool ASP_Character::HasWeapon(EWeaponType WeaponType) const
 
 void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
 {
-	auto EnhanceSlot = [this](FWeaponData& SlotData, EWeaponType TargetType) {
-		if (SlotData.WeaponType == TargetType)
+	auto EnhanceSlot = [this, WeaponType](FWeaponData& SlotData, ASP_WeaponBase* WeaponActor) {
+		if (SlotData.WeaponType == WeaponType)
 		{
 			if (SlotData.EnhanceLevel < MAX_UPGRADE_LEVEL)
 			{
 				SlotData.EnhanceLevel++;
-				UE_LOG(LogTemp, Log, TEXT("%d Weapon Enhanced to Level %d"), (int32)TargetType, SlotData.EnhanceLevel);
+
+				// 실제 무기 액터 데미지 반영
+				if (WeaponActor)
+				{
+					WeaponActor->EnhanceDamage(1.15f); // ← CurrentStats 직접 접근 대신
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("WeaponActor is NULL - damage not applied"));
+				}
 			}
 		}
 		};
 
-	EnhanceSlot(LeftWeaponData, WeaponType);
-	EnhanceSlot(RightWeaponData, WeaponType);
+	EnhanceSlot(LeftWeaponData, LeftHandWeapon);
+	EnhanceSlot(RightWeaponData, RightHandWeapon);
 
-	// 무기 비주얼이나 스탯 갱신
-	SpawnOrUpdateHandWeapon(LeftWeaponData.WeaponType == WeaponType ? false : true);
+	if (LeftWeaponData.WeaponType == WeaponType)
+		SpawnOrUpdateHandWeapon(false);
+	if (RightWeaponData.WeaponType == WeaponType)
+		SpawnOrUpdateHandWeapon(true);
 }
 
 // 💡 [신규] 권총 진화 조건 체크: 기본 권총(Pistol) 8강 이고 최대 체력 레벨이 8인 경우

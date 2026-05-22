@@ -313,3 +313,9 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
 #endif
     }
 }
+
+void ASP_WeaponBase::EnhanceDamage(float Multiplier)
+{
+    CurrentStats.Damage *= Multiplier;
+    UE_LOG(LogTemp, Log, TEXT("Weapon Damage Enhanced: %f"), CurrentStats.Damage);
+}
