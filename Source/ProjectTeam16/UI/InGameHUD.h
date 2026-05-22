@@ -76,6 +76,9 @@ protected:
 	TObjectPtr<UTextBlock> HpText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StaminaText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> LevelText;
 
 	UPROPERTY(meta = (BindWidgetOptional))

@@ -20,9 +20,32 @@ void UInGameHUD::NativeConstruct()
 		MiniMap = GetWidgetFromName(TEXT("MiniMap"));
 	}
 
+	if (!HpText)
+	{
+		HpText = Cast<UTextBlock>(GetWidgetFromName(TEXT("HpText")));
+		if (!HpText)
+		{
+			HpText = Cast<UTextBlock>(GetWidgetFromName(TEXT("HPText")));
+		}
+	}
+
+	if (!StaminaText)
+	{
+		StaminaText = Cast<UTextBlock>(GetWidgetFromName(TEXT("StaminaText")));
+		if (!StaminaText)
+		{
+			StaminaText = Cast<UTextBlock>(GetWidgetFromName(TEXT("staminatext")));
+		}
+	}
+
 	if (!BossnameText)
 	{
 		BossnameText = Cast<UTextBlock>(GetWidgetFromName(TEXT("BossNameText")));
+	}
+
+	if (!ZombieKillCountText)
+	{
+		ZombieKillCountText = Cast<UTextBlock>(GetWidgetFromName(TEXT("ZombieKillCountText")));
 	}
 
 	if (!BossHealthText)
@@ -73,6 +96,33 @@ void UInGameHUD::NativeConstruct()
 		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: ExperienceProgressBar is not bound. Check widget name and Is Variable."));
 	}
 
+	if (HpText)
+	{
+		HpText->SetText(FText::FromString(TEXT("100 / 100")));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: HpText/HPText is not bound. Check widget name and Is Variable."));
+	}
+
+	if (StaminaText)
+	{
+		StaminaText->SetText(FText::FromString(TEXT("100 / 100")));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: StaminaText is not bound. Check widget name and Is Variable."));
+	}
+
+	if (ZombieKillCountText)
+	{
+		ZombieKillCountText->SetText(FText::AsNumber(0));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: ZombieKillCountText is not bound. Check widget name and Is Variable."));
+	}
+
 	HideBossHealth();
 }
 
@@ -104,7 +154,7 @@ void UInGameHUD::UpdateHealth(float CurrentHealth, float MaxHealth)
 	{
 		const int32 CurrentHealthValue = FMath::Max(0, FMath::RoundToInt(CurrentHealth));
 		const int32 MaxHealthValue = FMath::Max(0, FMath::RoundToInt(MaxHealth));
-		HpText->SetText(FText::FromString(FString::Printf(TEXT("HP %d / %d"), CurrentHealthValue, MaxHealthValue)));
+		HpText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), CurrentHealthValue, MaxHealthValue)));
 	}
 }
 
@@ -120,6 +170,13 @@ void UInGameHUD::UpdateStamina(float CurrentStamina, float MaxStamina)
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WBP_InGameHUD: StaminaProgressBar is null. CurrentStamina=%f MaxStamina=%f Percent=%f"), CurrentStamina, MaxStamina, StaminaPercent);
+	}
+
+	if (StaminaText)
+	{
+		const int32 CurrentStaminaValue = FMath::Max(0, FMath::RoundToInt(CurrentStamina));
+		const int32 MaxStaminaValue = FMath::Max(0, FMath::RoundToInt(MaxStamina));
+		StaminaText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), CurrentStaminaValue, MaxStaminaValue)));
 	}
 }
 
@@ -149,7 +206,7 @@ void UInGameHUD::UpdateZombieKillCount(int32 KillCount)
 {
 	if (ZombieKillCountText)
 	{
-		ZombieKillCountText->SetText(FText::FromString(FString::Printf(TEXT("kill %d"), KillCount)));
+		ZombieKillCountText->SetText(FText::AsNumber(KillCount));
 	}
 }
 
