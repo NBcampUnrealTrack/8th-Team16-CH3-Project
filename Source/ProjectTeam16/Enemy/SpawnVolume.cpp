@@ -197,6 +197,8 @@ void ASpawnVolume::StartEnrage()
 		}
 	}
 
+	ReceiveOnStartEnrage();
+
 	// 15초 뒤에 종료 함수를 호출하는 일회성 타이머 설정
 	GetWorldTimerManager().SetTimer(EnrageDurationTimerHandle, this, &ASpawnVolume::EndEnrage, EnrageTime, false);
 }
@@ -217,6 +219,8 @@ void ASpawnVolume::EndEnrage()
 			Zombie->SetEnrageMode(false, EnrageSpeedMultiplier);
 		}
 	}
+
+	ReceiveOnEndEnrage();
 }
 
 void ASpawnVolume::OnZombieDestroyed()
@@ -224,5 +228,6 @@ void ASpawnVolume::OnZombieDestroyed()
 	CurrentZombieCount = FMath::Max(0, CurrentZombieCount - 1);
 	SpawnZombie();
 }
+
 
 

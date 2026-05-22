@@ -54,9 +54,6 @@ public:
     class UButton* CardButton3;
 
     UPROPERTY(meta = (BindWidget))
-    class UButton* CardButton4;
-
-    UPROPERTY(meta = (BindWidget))
     class UImage* CardImage1;
 
     UPROPERTY(meta = (BindWidget))
@@ -64,9 +61,6 @@ public:
 
     UPROPERTY(meta = (BindWidget))
     class UImage* CardImage3;
-
-    UPROPERTY(meta = (BindWidget))
-    class UImage* CardImage4;
 
     UFUNCTION(BlueprintCallable)
     void SetupRandomCards();
@@ -82,6 +76,40 @@ public:
 
     const int32 MAX_UPGRADE_LEVEL = 8; // 최대 8강 정의
 
+    // 애니메이션 레퍼런스
+    UPROPERTY(Transient, meta = (BindWidgetAnim))
+    UWidgetAnimation* Anim_DimIn;
+
+    UPROPERTY(Transient, meta = (BindWidgetAnim))
+    UWidgetAnimation* Anim_CardDeal;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardTitle1;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardTitle2;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardTitle3;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardDesc1;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardDesc2;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardDesc3;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardLevel1;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardLevel2;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* CardLevel3;
+
 private:
     UTexture2D* LoadCardTexture(const FString& TexturePath);
 
@@ -92,7 +120,15 @@ private:
     UFUNCTION() void OnCard1Clicked();
     UFUNCTION() void OnCard2Clicked();
     UFUNCTION() void OnCard3Clicked();
-    UFUNCTION() void OnCard4Clicked();
     void OnCardSelected(int32 Index);
-    
+    void ApplyUpgradeAndClose(int32 Index);
+
+    int32 PendingUpgradeIndex = 0;
+
+    UFUNCTION()
+    void OnCardDealAnimFinished();
+
+    UFUNCTION()
+    void OnCardDealInAnimFinished();
+
 };

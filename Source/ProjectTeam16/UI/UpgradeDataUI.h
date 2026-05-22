@@ -34,6 +34,15 @@ struct FUpgradeData
     UPROPERTY(BlueprintReadWrite)
     EWeaponType WeaponTarget2;
 
+    UPROPERTY(BlueprintReadWrite)
+    FText CardTitle;       // ← 추가: 카드 이름
+
+    UPROPERTY(BlueprintReadWrite)
+    FText CardDescription; // ← 추가: 효과 설명
+
+    UPROPERTY(BlueprintReadWrite)
+    FText CardLevel; // ← 추가: 강화 단계 
+
     FUpgradeData()
         : UpgradeType(EUpgradeType::MaxHP)
         , CardTexture(nullptr)

@@ -64,6 +64,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category="SpawningBoss")
 	float BossSpawnTime = 600.0f;
 
+	// 블루프린트에서 구현할 광폭화 시작/종료 이벤트
+	UFUNCTION(BlueprintImplementableEvent, Category = "Enrage")
+	void ReceiveOnStartEnrage();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Enrage")
+	void ReceiveOnEndEnrage();
+
 public:
 	UPROPERTY(EditAnywhere, Category="Enrage")
 	float EnrageSpeedMultiplier = 1.5f; //광폭화 이동속도 수치
@@ -77,5 +84,6 @@ public:
 
 	void StartEnrage();
 	void EndEnrage();
+
 	void OnZombieDestroyed();
 };

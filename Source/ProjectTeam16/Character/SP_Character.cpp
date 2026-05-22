@@ -289,6 +289,12 @@ void ASP_Character::SpawnOrUpdateHandWeapon(bool bIsRightHand)
 						UpdatedStats.Range *= 1.8f; // 사거리 대폭 증가
 					}
 
+					if (TargetData.EnhanceLevel > 0)
+					{
+						float EnhanceMultiplier = FMath::Pow(1.15f, TargetData.EnhanceLevel);
+						UpdatedStats.Damage *= EnhanceMultiplier;
+					}
+
 					NewWeapon->SetWeaponVisuals(UpdatedStats.WeaponMesh);
 					NewWeapon->SetWeaponStats(UpdatedStats);
 
@@ -680,6 +686,7 @@ void ASP_Character::EnhanceWeapon(EWeaponType WeaponType)
 	// 버그 수정 정확한 타겟 손을 찾아서 무기 스탯 리로드
 	if (bEnhancedLeft) SpawnOrUpdateHandWeapon(false);
 	if (bEnhancedRight) SpawnOrUpdateHandWeapon(true);
+
 }
 
 // 💡 [신규] 권총 진화 조건 체크: 기본 권총(Pistol) 8강 이고 최대 체력 레벨이 8인 경우
