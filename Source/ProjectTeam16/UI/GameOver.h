@@ -4,15 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Containers/Ticker.h"
 #include "GameOver.generated.h"
 
+class UBorder;
 class UButton;
 class UImage;
-class UMaterialInterface;
-class UMediaPlayer;
-class UMediaSource;
-class UProgressBar;
 class UTextBlock;
+class UWidget;
 
 UCLASS()
 class PROJECTTEAM16_API UGameOver : public UUserWidget
@@ -20,8 +19,6 @@ class PROJECTTEAM16_API UGameOver : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UGameOver(const FObjectInitializer& ObjectInitializer);
-
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -39,87 +36,68 @@ public:
 
 protected:
 	UFUNCTION()
-	void OnRetryButtonClicked();
-
-	UFUNCTION()
-	void OnRetryButtonHovered();
-
-	UFUNCTION()
-	void OnRetryButtonUnhovered();
-
-	UFUNCTION()
 	void OnMainMenuButtonClicked();
 
-	UFUNCTION()
-	void OnMainMenuButtonHovered();
-
-	UFUNCTION()
-	void OnMainMenuButtonUnhovered();
-
-	UFUNCTION()
-	void OnQuitGameButtonClicked();
-
-	UFUNCTION()
-	void OnQuitGameButtonHovered();
-
-	UFUNCTION()
-	void OnQuitGameButtonUnhovered();
-
-	UFUNCTION()
-	void HandleGameOverVideoOpened(FString OpenedUrl);
-
-	UFUNCTION()
-	void HandleGameOverVideoEndReached();
-
-	void StartGameOverBackgroundVideo();
-	void StopGameOverBackgroundVideo();
-	void SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const;
+	void InitializeRevealState();
+	void StartRevealSequence();
+	void StopRevealSequence();
+	bool UpdateRevealSequence(float DeltaTime);
+	void ApplyWidgetReveal(UWidget* TargetWidget, float Alpha, ESlateVisibility VisibleState) const;
+	void ResolveOptionalWidgets();
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UButton> RetryButton;
+	TObjectPtr<UBorder> Border_0;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> MainMenuButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UButton> QuitGameButton;
+	TObjectPtr<UImage> GameOverImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UImage> GameOver;
+	TObjectPtr<UImage> GameOverImage2;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UImage> RetryButtonImage;
+	TObjectPtr<UImage> KillcountImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UImage> MainMenuButtonImage;
+	TObjectPtr<UImage> TimeImage;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UImage> QuitGameButtonImage;
+	TObjectPtr<UTextBlock> Killcount;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> GameOverText;
+	TObjectPtr<UTextBlock> Killcount2;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> ScoreText;
+	TObjectPtr<UTextBlock> Time;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> SurvivalTimeText;
+	TObjectPtr<UTextBlock> Time2;
 
-	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UProgressBar> RespawnProgressBar;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float RedFadeDuration = 1.2f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMediaPlayer> GameOverMediaPlayer;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float GameOverImagesFadeDuration = 0.75f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMediaSource> GameOverMediaSource;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float StatsFadeDuration = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Background Video", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UMaterialInterface> GameOverVideoMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float MainMenuButtonFadeDuration = 0.4f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
-	FLinearColor ButtonImageNormalTint = FLinearColor::White;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
+	float StageGapDuration = 0.15f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance", meta = (AllowPrivateAccess = "true"))
-	FLinearColor ButtonImageHoveredTint = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float RedOverlayTargetOpacity = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reveal", meta = (AllowPrivateAccess = "true"))
+	FLinearColor RedOverlayColor = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f);
+
+	FTSTicker::FDelegateHandle RevealTickerHandle;
+	float RevealElapsedTime = 0.0f;
+	int32 CachedKillCount = 0;
+	int32 CachedSurvivalSeconds = 0;
 };

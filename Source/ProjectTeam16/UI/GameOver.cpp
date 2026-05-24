@@ -3,36 +3,24 @@
 #include "ProjectTeam16/UI/GameOver.h"
 
 #include "Team16PlayerController.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "Materials/MaterialInterface.h"
-#include "MediaPlayer.h"
-#include "MediaSource.h"
-#include "UObject/ConstructorHelpers.h"
 
-UGameOver::UGameOver(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+namespace
 {
-	static ConstructorHelpers::FObjectFinder<UMediaPlayer> DefaultMediaPlayer(TEXT("/Game/UI/Videos/MP_GameOver.MP_GameOver"));
-	if (DefaultMediaPlayer.Succeeded())
+	float CalculateAlphaInRange(float Time, float Start, float Duration)
 	{
-		GameOverMediaPlayer = DefaultMediaPlayer.Object;
-	}
+		if (Duration <= KINDA_SMALL_NUMBER)
+		{
+			return Time >= Start ? 1.0f : 0.0f;
+		}
 
-	static ConstructorHelpers::FObjectFinder<UMediaSource> DefaultMediaSource(TEXT("/Game/UI/Videos/GameOver.GameOver"));
-	if (DefaultMediaSource.Succeeded())
-	{
-		GameOverMediaSource = DefaultMediaSource.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultVideoMaterial(TEXT("/Game/UI/Videos/M_GameOver_Video_UI.M_GameOver_Video_UI"));
-	if (DefaultVideoMaterial.Succeeded())
-	{
-		GameOverVideoMaterial = DefaultVideoMaterial.Object;
+		return FMath::Clamp((Time - Start) / Duration, 0.0f, 1.0f);
 	}
 }
 
@@ -40,97 +28,67 @@ void UGameOver::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (RetryButton)
-	{
-		RetryButton->OnClicked.AddUniqueDynamic(this, &UGameOver::OnRetryButtonClicked);
-		RetryButton->OnHovered.AddUniqueDynamic(this, &UGameOver::OnRetryButtonHovered);
-		RetryButton->OnUnhovered.AddUniqueDynamic(this, &UGameOver::OnRetryButtonUnhovered);
-	}
-
 	if (MainMenuButton)
 	{
 		MainMenuButton->OnClicked.AddUniqueDynamic(this, &UGameOver::OnMainMenuButtonClicked);
-		MainMenuButton->OnHovered.AddUniqueDynamic(this, &UGameOver::OnMainMenuButtonHovered);
-		MainMenuButton->OnUnhovered.AddUniqueDynamic(this, &UGameOver::OnMainMenuButtonUnhovered);
 	}
 
-	if (QuitGameButton)
-	{
-		QuitGameButton->OnClicked.AddUniqueDynamic(this, &UGameOver::OnQuitGameButtonClicked);
-		QuitGameButton->OnHovered.AddUniqueDynamic(this, &UGameOver::OnQuitGameButtonHovered);
-		QuitGameButton->OnUnhovered.AddUniqueDynamic(this, &UGameOver::OnQuitGameButtonUnhovered);
-	}
-
-	SetButtonImageHovered(RetryButtonImage, false);
-	SetButtonImageHovered(MainMenuButtonImage, false);
-	SetButtonImageHovered(QuitGameButtonImage, false);
-	StartGameOverBackgroundVideo();
+	ResolveOptionalWidgets();
+	UpdateScore(CachedKillCount);
+	UpdateSurvivalTime(CachedSurvivalSeconds);
+	InitializeRevealState();
 }
 
 void UGameOver::NativeDestruct()
 {
-	StopGameOverBackgroundVideo();
-
+	StopRevealSequence();
 	Super::NativeDestruct();
 }
 
 void UGameOver::Show()
 {
 	SetVisibility(ESlateVisibility::Visible);
-	StartGameOverBackgroundVideo();
+	InitializeRevealState();
+	StartRevealSequence();
 }
 
 void UGameOver::Hide()
 {
+	StopRevealSequence();
 	SetVisibility(ESlateVisibility::Collapsed);
-	StopGameOverBackgroundVideo();
 }
 
 void UGameOver::UpdateScore(int32 KillCount)
 {
-	if (ScoreText)
+	CachedKillCount = FMath::Max(0, KillCount);
+
+	if (Killcount)
 	{
-		ScoreText->SetText(FText::AsNumber(KillCount));
+		Killcount->SetText(FText::AsNumber(CachedKillCount));
+	}
+
+	if (Killcount2)
+	{
+		Killcount2->SetText(FText::FromString(TEXT("처치 수:")));
 	}
 }
 
 void UGameOver::UpdateSurvivalTime(int32 SurvivalSeconds)
 {
-	const int32 ClampedSeconds = FMath::Max(0, SurvivalSeconds);
-	const int32 Minutes = ClampedSeconds / 60;
-	const int32 Seconds = ClampedSeconds % 60;
+	CachedSurvivalSeconds = FMath::Max(0, SurvivalSeconds);
+	const int32 Minutes = CachedSurvivalSeconds / 60;
+	const int32 Seconds = CachedSurvivalSeconds % 60;
+	const FString TimeValue = FString::Printf(TEXT("%02d : %02d"), Minutes, Seconds);
 
-	if (SurvivalTimeText)
+	if (Time)
 	{
-		SurvivalTimeText->SetText(FText::FromString(FString::Printf(TEXT("%02d : %02d"), Minutes, Seconds)));
-	}
-}
-
-void UGameOver::OnRetryButtonClicked()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
+		Time->SetText(FText::FromString(TimeValue));
 	}
 
-	if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(GetOwningPlayer()))
+	if (Time2)
 	{
-		PlayerController->FadeToLevel(FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), TEXT("SkipMainMenu"));
-		return;
+		Time2->SetText(FText::FromString(TEXT("생존 시간:")));
 	}
-
-	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("SkipMainMenu"));
-}
-
-void UGameOver::OnRetryButtonHovered()
-{
-	SetButtonImageHovered(RetryButtonImage, true);
-}
-
-void UGameOver::OnRetryButtonUnhovered()
-{
-	SetButtonImageHovered(RetryButtonImage, false);
 }
 
 void UGameOver::OnMainMenuButtonClicked()
@@ -150,91 +108,157 @@ void UGameOver::OnMainMenuButtonClicked()
 	UGameplayStatics::OpenLevel(World, FName(TEXT("/Game/Modern_Gas_Station/Maps/MainLevel")), true, TEXT("ShowMainMenu"));
 }
 
-void UGameOver::OnMainMenuButtonHovered()
+void UGameOver::InitializeRevealState()
 {
-	SetButtonImageHovered(MainMenuButtonImage, true);
-}
+	StopRevealSequence();
 
-void UGameOver::OnMainMenuButtonUnhovered()
-{
-	SetButtonImageHovered(MainMenuButtonImage, false);
-}
-
-void UGameOver::OnQuitGameButtonClicked()
-{
-	UWorld* World = GetWorld();
-	APlayerController* PlayerController = World ? UGameplayStatics::GetPlayerController(World, 0) : nullptr;
-
-	UKismetSystemLibrary::QuitGame(World, PlayerController, EQuitPreference::Quit, false);
-}
-
-void UGameOver::OnQuitGameButtonHovered()
-{
-	SetButtonImageHovered(QuitGameButtonImage, true);
-}
-
-void UGameOver::OnQuitGameButtonUnhovered()
-{
-	SetButtonImageHovered(QuitGameButtonImage, false);
-}
-
-void UGameOver::HandleGameOverVideoOpened(FString OpenedUrl)
-{
-	if (GameOverMediaPlayer)
+	if (Border_0)
 	{
-		GameOverMediaPlayer->Play();
+		Border_0->SetBrushColor(RedOverlayColor);
+	}
+
+	ApplyWidgetReveal(Border_0, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(GameOverImage, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(GameOverImage2, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Killcount, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Killcount2, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(KillcountImage, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Time, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Time2, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(TimeImage, 0.0f, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(MainMenuButton, 0.0f, ESlateVisibility::Visible);
+
+	if (MainMenuButton)
+	{
+		MainMenuButton->SetIsEnabled(false);
 	}
 }
 
-void UGameOver::HandleGameOverVideoEndReached()
+void UGameOver::StartRevealSequence()
 {
-	if (GameOverMediaPlayer)
+	RevealElapsedTime = 0.0f;
+
+	if (RevealTickerHandle.IsValid())
 	{
-		GameOverMediaPlayer->Rewind();
-		GameOverMediaPlayer->Play();
+		FTSTicker::GetCoreTicker().RemoveTicker(RevealTickerHandle);
+		RevealTickerHandle.Reset();
+	}
+
+	RevealTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UGameOver::UpdateRevealSequence));
+}
+
+void UGameOver::StopRevealSequence()
+{
+	if (RevealTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(RevealTickerHandle);
+		RevealTickerHandle.Reset();
 	}
 }
 
-void UGameOver::StartGameOverBackgroundVideo()
+bool UGameOver::UpdateRevealSequence(float DeltaTime)
 {
-	if (GameOver && GameOverVideoMaterial)
+	RevealElapsedTime += DeltaTime;
+
+	const float Stage1Start = 0.0f;
+	const float Stage2Start = Stage1Start + RedFadeDuration + StageGapDuration;
+	const float Stage3Start = Stage2Start + GameOverImagesFadeDuration + StageGapDuration;
+	const float Stage4Start = Stage3Start + StatsFadeDuration + StageGapDuration;
+	const float EndTime = Stage4Start + MainMenuButtonFadeDuration;
+
+	const float RedAlpha = CalculateAlphaInRange(RevealElapsedTime, Stage1Start, RedFadeDuration) * RedOverlayTargetOpacity;
+	const float ImagesAlpha = CalculateAlphaInRange(RevealElapsedTime, Stage2Start, GameOverImagesFadeDuration);
+	const float StatsAlpha = CalculateAlphaInRange(RevealElapsedTime, Stage3Start, StatsFadeDuration);
+	const float ButtonAlpha = CalculateAlphaInRange(RevealElapsedTime, Stage4Start, MainMenuButtonFadeDuration);
+
+	ApplyWidgetReveal(Border_0, RedAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(GameOverImage, ImagesAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(GameOverImage2, ImagesAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Killcount, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Killcount2, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(KillcountImage, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Time, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(Time2, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(TimeImage, StatsAlpha, ESlateVisibility::HitTestInvisible);
+	ApplyWidgetReveal(MainMenuButton, ButtonAlpha, ESlateVisibility::Visible);
+
+	if (MainMenuButton)
 	{
-		GameOver->SetBrushFromMaterial(GameOverVideoMaterial);
+		MainMenuButton->SetIsEnabled(ButtonAlpha >= 1.0f);
 	}
 
-	if (!GameOverMediaPlayer || !GameOverMediaSource)
+	return RevealElapsedTime < EndTime;
+}
+
+void UGameOver::ApplyWidgetReveal(UWidget* TargetWidget, float Alpha, ESlateVisibility VisibleState) const
+{
+	if (!TargetWidget)
 	{
 		return;
 	}
 
-	GameOverMediaPlayer->OnMediaOpened.AddUniqueDynamic(this, &UGameOver::HandleGameOverVideoOpened);
-	GameOverMediaPlayer->OnEndReached.AddUniqueDynamic(this, &UGameOver::HandleGameOverVideoEndReached);
-	GameOverMediaPlayer->SetLooping(true);
-
-	if (!GameOverMediaPlayer->IsPlaying())
-	{
-		GameOverMediaPlayer->OpenSource(GameOverMediaSource);
-	}
+	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+	TargetWidget->SetVisibility(ClampedAlpha > 0.0f ? VisibleState : ESlateVisibility::Hidden);
+	TargetWidget->SetRenderOpacity(ClampedAlpha);
 }
 
-void UGameOver::StopGameOverBackgroundVideo()
+void UGameOver::ResolveOptionalWidgets()
 {
-	if (!GameOverMediaPlayer)
+	if (!Border_0)
 	{
-		return;
+		Border_0 = Cast<UBorder>(GetWidgetFromName(TEXT("Border_0")));
 	}
 
-	GameOverMediaPlayer->OnMediaOpened.RemoveDynamic(this, &UGameOver::HandleGameOverVideoOpened);
-	GameOverMediaPlayer->OnEndReached.RemoveDynamic(this, &UGameOver::HandleGameOverVideoEndReached);
-	GameOverMediaPlayer->Close();
-}
-
-void UGameOver::SetButtonImageHovered(UImage* ButtonImage, bool bIsHovered) const
-{
-	if (!ButtonImage)
+	if (!GameOverImage)
 	{
-		return;
+		GameOverImage = Cast<UImage>(GetWidgetFromName(TEXT("GameOverImage")));
 	}
 
-	ButtonImage->SetColorAndOpacity(bIsHovered ? ButtonImageHoveredTint : ButtonImageNormalTint);
+	if (!GameOverImage2)
+	{
+		GameOverImage2 = Cast<UImage>(GetWidgetFromName(TEXT("GameOverImage2")));
+		if (!GameOverImage2)
+		{
+			GameOverImage2 = Cast<UImage>(GetWidgetFromName(TEXT("Image")));
+		}
+	}
+
+	if (!KillcountImage)
+	{
+		KillcountImage = Cast<UImage>(GetWidgetFromName(TEXT("KillcountImage")));
+	}
+
+	if (!TimeImage)
+	{
+		TimeImage = Cast<UImage>(GetWidgetFromName(TEXT("TimeImage")));
+	}
+
+	if (!Killcount)
+	{
+		Killcount = Cast<UTextBlock>(GetWidgetFromName(TEXT("Killcount")));
+		if (!Killcount)
+		{
+			Killcount = Cast<UTextBlock>(GetWidgetFromName(TEXT("ScoreText")));
+		}
+	}
+
+	if (!Killcount2)
+	{
+		Killcount2 = Cast<UTextBlock>(GetWidgetFromName(TEXT("Killcount2")));
+	}
+
+	if (!Time)
+	{
+		Time = Cast<UTextBlock>(GetWidgetFromName(TEXT("Time")));
+		if (!Time)
+		{
+			Time = Cast<UTextBlock>(GetWidgetFromName(TEXT("SurvivalTimeText")));
+		}
+	}
+
+	if (!Time2)
+	{
+		Time2 = Cast<UTextBlock>(GetWidgetFromName(TEXT("Time2")));
+	}
 }
