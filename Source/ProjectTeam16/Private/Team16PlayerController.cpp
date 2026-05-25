@@ -340,7 +340,6 @@ void ATeam16PlayerController::UpdateHUDZombieKillCount(int32 KillCount)
 void ATeam16PlayerController::ShowHUDBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
 {
 	bBossHUDActive = true;
-	StopGameTimer();
 
 	if (!HUDWidgetInstance && HUDWidgetClass)
 	{
@@ -437,7 +436,7 @@ void ATeam16PlayerController::ShowGameOver()
 
 	GameOverWidgetInstance->Show();
 	GameOverWidgetInstance->UpdateScore(ZombieKillCount);
-	GameOverWidgetInstance->UpdateSurvivalTime(FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds));
+	GameOverWidgetInstance->UpdateSurvivalTime(FMath::Max(0, SurvivalElapsedSeconds));
 
 	UGameplayStatics::SetGamePaused(World, true);
 
@@ -745,7 +744,7 @@ void ATeam16PlayerController::ShowClearResult()
 
 	ClearResultWidgetInstance->Show();
 	ClearResultWidgetInstance->UpdateClearStats(
-		FMath::Clamp(GameTimerStartSeconds - GameTimerRemainingSeconds, 0, GameTimerStartSeconds),
+		FMath::Max(0, SurvivalElapsedSeconds),
 		ZombieKillCount,
 		TotalDamageTaken
 	);
@@ -768,7 +767,7 @@ void ATeam16PlayerController::StartGameTimer()
 	}
 
 	bBossHUDActive = false;
-	
+	SurvivalElapsedSeconds = 0;
 	GameTimerRemainingSeconds = FMath::Max(0, GameTimerStartSeconds);
 	UpdateHUDTime();
 
@@ -786,20 +785,14 @@ void ATeam16PlayerController::StopGameTimer()
 
 void ATeam16PlayerController::HandleGameTimerTick()
 {
+	SurvivalElapsedSeconds++;
+
 	if (GameTimerRemainingSeconds > 0)
 	{
 		GameTimerRemainingSeconds--;
-		UpdateHUDTime();
 	}
 
-	if (GameTimerRemainingSeconds <= 0)
-	{
-		StopGameTimer();
-		if (HUDWidgetInstance)
-		{
-			HUDWidgetInstance->HideTime();
-		}
-	}
+	UpdateHUDTime();
 }
 
 void ATeam16PlayerController::UpdateHUDTime()
@@ -812,7 +805,14 @@ void ATeam16PlayerController::UpdateHUDTime()
 			return;
 		}
 
-		HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
+		if (GameTimerRemainingSeconds > 0)
+		{
+			HUDWidgetInstance->UpdateTime(GameTimerRemainingSeconds);
+		}
+		else
+		{
+			HUDWidgetInstance->HideTime();
+		}
 	}
 }
 
@@ -877,6 +877,7 @@ void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
 {
 	GameTimerStartSeconds = FMath::Max(0, NewStartSeconds);
 	GameTimerRemainingSeconds = GameTimerStartSeconds;
+	SurvivalElapsedSeconds = 0;
 	UpdateHUDTime();
 }
 /*

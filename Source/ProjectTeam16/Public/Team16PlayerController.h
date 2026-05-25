@@ -189,6 +189,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")
 	int32 GameTimerRemainingSeconds = 600;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Gameplay")
+	int32 SurvivalElapsedSeconds = 0;
+
 	FTimerHandle GameTimerHandle;
 	bool bBossHUDActive = false;
 

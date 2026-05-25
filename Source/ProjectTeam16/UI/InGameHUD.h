@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Slate/WidgetTransform.h"
 #include "InGameHUD.generated.h"
 
 class UProgressBar;
@@ -17,6 +18,7 @@ class PROJECTTEAM16_API UInGameHUD : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Show();
@@ -62,6 +64,19 @@ public:
 
 protected:
 	void ConfigureStableBossHealthText(UTextBlock* TargetText) const;
+	void StartBossIntroAnimation();
+	void QueueBossIntroWidget(UWidget* TargetWidget, float StartDelaySeconds);
+	void TickBossIntroAnimation();
+	void StopBossIntroAnimation(bool bRestoreBaseTransform);
+
+	struct FBossIntroAnimItem
+	{
+		TWeakObjectPtr<UWidget> Widget;
+		FWidgetTransform BaseTransform;
+		float StartDelaySeconds = 0.0f;
+		bool bStarted = false;
+		bool bFinished = false;
+	};
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> ExperienceProgressBar;
@@ -90,6 +105,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> MiniMap;
 
+	UPROPERTY(BlueprintReadOnly, Category = "UI", meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> PlayerIcon;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> BossHealthBox;
 
@@ -110,4 +128,8 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BossHPText;
+
+	TArray<FBossIntroAnimItem> BossIntroAnimItems;
+	float BossIntroStartWorldTime = 0.0f;
+	bool bIsBossIntroAnimating = false;
 };

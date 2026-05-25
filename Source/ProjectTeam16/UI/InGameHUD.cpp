@@ -20,6 +20,11 @@ void UInGameHUD::NativeConstruct()
 		MiniMap = GetWidgetFromName(TEXT("MiniMap"));
 	}
 
+	if (!PlayerIcon)
+	{
+		PlayerIcon = GetWidgetFromName(TEXT("PlayerIcon"));
+	}
+
 	if (!HpText)
 	{
 		HpText = Cast<UTextBlock>(GetWidgetFromName(TEXT("HpText")));
@@ -124,6 +129,12 @@ void UInGameHUD::NativeConstruct()
 	}
 
 	HideBossHealth();
+}
+
+void UInGameHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	TickBossIntroAnimation();
 }
 
 void UInGameHUD::Show()
@@ -237,6 +248,11 @@ void UInGameHUD::ShowMiniMap()
 	{
 		MiniMap->SetVisibility(ESlateVisibility::Visible);
 	}
+
+	if (PlayerIcon)
+	{
+		PlayerIcon->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
 void UInGameHUD::HideMiniMap()
@@ -245,11 +261,17 @@ void UInGameHUD::HideMiniMap()
 	{
 		MiniMap->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	if (PlayerIcon)
+	{
+		PlayerIcon->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UInGameHUD::ShowBossHealth(const FString& BossName, float CurrentHealth, float MaxHealth)
 {
 	HideMiniMap();
+	StopBossIntroAnimation(true);
 
 	if (BossHealthBox)
 	{
@@ -258,40 +280,43 @@ void UInGameHUD::ShowBossHealth(const FString& BossName, float CurrentHealth, fl
 
 	if (BossHealthProgressBar)
 	{
-		BossHealthProgressBar->SetVisibility(ESlateVisibility::Visible);
+		BossHealthProgressBar->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	if (BossHealthProgressBar_1)
 	{
-		BossHealthProgressBar_1->SetVisibility(ESlateVisibility::Visible);
+		BossHealthProgressBar_1->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	if (BossHealthBlackbar)
 	{
-		BossHealthBlackbar->SetVisibility(ESlateVisibility::Visible);
+		BossHealthBlackbar->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	if (BossnameText)
 	{
-		BossnameText->SetVisibility(ESlateVisibility::Visible);
+		BossnameText->SetVisibility(ESlateVisibility::Hidden);
 		BossnameText->SetText(FText::FromString(BossName));
 	}
 
 	if (BossHealthText)
 	{
-		BossHealthText->SetVisibility(ESlateVisibility::Visible);
+		BossHealthText->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	if (BossHPText)
 	{
-		BossHPText->SetVisibility(ESlateVisibility::Visible);
+		BossHPText->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	UpdateBossHealth(CurrentHealth, MaxHealth);
+	StartBossIntroAnimation();
 }
 
 void UInGameHUD::HideBossHealth()
 {
+	StopBossIntroAnimation(true);
+
 	if (BossHealthBox)
 	{
 		BossHealthBox->SetVisibility(ESlateVisibility::Collapsed);
@@ -364,4 +389,156 @@ void UInGameHUD::ConfigureStableBossHealthText(UTextBlock* TargetText) const
 	TargetText->SetAutoWrapText(false);
 	TargetText->SetJustification(ETextJustify::Center);
 	TargetText->SetMinDesiredWidth(260.0f);
+}
+
+void UInGameHUD::StartBossIntroAnimation()
+{
+	BossIntroAnimItems.Reset();
+	QueueBossIntroWidget(BossnameText, 0.0f);
+
+	// BossNameText만 먼저 나오고, 체력 텍스트와 바들은 같이 등장합니다.
+	constexpr float BarGroupDelaySeconds = 0.7f;
+	QueueBossIntroWidget(BossHealthText, BarGroupDelaySeconds);
+	if (BossHPText && BossHPText != BossHealthText)
+	{
+		QueueBossIntroWidget(BossHPText, BarGroupDelaySeconds);
+	}
+
+	QueueBossIntroWidget(BossHealthProgressBar, BarGroupDelaySeconds);
+	QueueBossIntroWidget(BossHealthProgressBar_1, BarGroupDelaySeconds);
+	QueueBossIntroWidget(BossHealthBlackbar, BarGroupDelaySeconds);
+
+	if (BossIntroAnimItems.IsEmpty())
+	{
+		bIsBossIntroAnimating = false;
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	BossIntroStartWorldTime = World ? World->GetTimeSeconds() : 0.0f;
+	bIsBossIntroAnimating = true;
+}
+
+void UInGameHUD::QueueBossIntroWidget(UWidget* TargetWidget, float StartDelaySeconds)
+{
+	if (!TargetWidget)
+	{
+		return;
+	}
+
+	FBossIntroAnimItem& Item = BossIntroAnimItems.Emplace_GetRef();
+	Item.Widget = TargetWidget;
+	Item.BaseTransform = TargetWidget->GetRenderTransform();
+	Item.StartDelaySeconds = FMath::Max(0.0f, StartDelaySeconds);
+	TargetWidget->SetVisibility(ESlateVisibility::Hidden);
+}
+
+void UInGameHUD::TickBossIntroAnimation()
+{
+	if (!bIsBossIntroAnimating || BossIntroAnimItems.IsEmpty())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float Elapsed = FMath::Max(0.0f, World->GetTimeSeconds() - BossIntroStartWorldTime);
+	constexpr float PopDurationSeconds = 0.23f;
+	constexpr float ShakeDurationSeconds = 0.34f;
+	constexpr float TotalDurationSeconds = PopDurationSeconds + ShakeDurationSeconds;
+	bool bAllFinished = true;
+
+	for (FBossIntroAnimItem& Item : BossIntroAnimItems)
+	{
+		if (Item.bFinished)
+		{
+			continue;
+		}
+
+		UWidget* TargetWidget = Item.Widget.Get();
+		if (!TargetWidget)
+		{
+			Item.bFinished = true;
+			continue;
+		}
+
+		if (Elapsed < Item.StartDelaySeconds)
+		{
+			bAllFinished = false;
+			continue;
+		}
+
+		if (!Item.bStarted)
+		{
+			TargetWidget->SetVisibility(ESlateVisibility::Visible);
+			Item.bStarted = true;
+		}
+
+		const float LocalTime = Elapsed - Item.StartDelaySeconds;
+		FWidgetTransform NewTransform = Item.BaseTransform;
+		float ScaleMultiplier = 1.0f;
+		FVector2D TranslationOffset = FVector2D::ZeroVector;
+		float AngleOffset = 0.0f;
+
+		if (LocalTime < PopDurationSeconds)
+		{
+			bAllFinished = false;
+			const float Alpha = LocalTime / PopDurationSeconds;
+			const float EaseOut = 1.0f - FMath::Pow(1.0f - Alpha, 3.0f);
+			ScaleMultiplier = FMath::Lerp(0.2f, 1.17f, EaseOut);
+			TranslationOffset.Y = FMath::Lerp(30.0f, -4.0f, EaseOut);
+		}
+		else if (LocalTime < TotalDurationSeconds)
+		{
+			bAllFinished = false;
+			const float ShakeAlpha = (LocalTime - PopDurationSeconds) / ShakeDurationSeconds;
+			const float Decay = 1.0f - ShakeAlpha;
+			ScaleMultiplier = FMath::Lerp(1.17f, 1.0f, ShakeAlpha);
+			TranslationOffset.X = FMath::Sin(ShakeAlpha * 4.0f * PI) * 10.0f * Decay;
+			TranslationOffset.Y = FMath::Sin(ShakeAlpha * 6.0f * PI) * 4.0f * Decay;
+			AngleOffset = FMath::Sin(ShakeAlpha * 5.0f * PI) * 3.0f * Decay;
+		}
+		else
+		{
+			Item.bFinished = true;
+		}
+
+		if (Item.bFinished)
+		{
+			TargetWidget->SetRenderTransform(Item.BaseTransform);
+			continue;
+		}
+
+		NewTransform.Scale = Item.BaseTransform.Scale * ScaleMultiplier;
+		NewTransform.Translation = Item.BaseTransform.Translation + TranslationOffset;
+		NewTransform.Angle = Item.BaseTransform.Angle + AngleOffset;
+		TargetWidget->SetRenderTransform(NewTransform);
+	}
+
+	if (bAllFinished)
+	{
+		StopBossIntroAnimation(true);
+	}
+}
+
+void UInGameHUD::StopBossIntroAnimation(bool bRestoreBaseTransform)
+{
+	if (bRestoreBaseTransform)
+	{
+		for (FBossIntroAnimItem& Item : BossIntroAnimItems)
+		{
+			if (UWidget* TargetWidget = Item.Widget.Get())
+			{
+				TargetWidget->SetRenderTransform(Item.BaseTransform);
+			}
+		}
+	}
+
+	BossIntroAnimItems.Reset();
+	BossIntroStartWorldTime = 0.0f;
+	bIsBossIntroAnimating = false;
 }
