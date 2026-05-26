@@ -8,6 +8,8 @@
 #include "Team16PlayerController.generated.h"
 
 class UInputAction;
+class UAudioComponent;
+class USoundBase;
 class UClearResult;
 class UGameOver;
 class UInGameHUD;
@@ -15,6 +17,7 @@ class UUserWidget;
 class ULevelUpWidget;
 class UOptionWidget;
 class UWidget;
+class UImage;
 
 UCLASS()
 class PROJECTTEAM16_API ATeam16PlayerController : public APlayerController
@@ -86,6 +89,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void OpenOptionUI();
+
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayMainMenuBGM();
+
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayInGameBGM();
+
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void StopBGM();
+
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void SetBGMVolume(float NewVolume);
 protected:
 	bool UpdateFadeOut(float DeltaTime);
 	bool UpdateFadeToLevel(float DeltaTime);
@@ -99,9 +114,21 @@ protected:
 	void ShowBossClearAnnouncement();
 	void FadeToClearResult();
 	void ShowClearResult();
+	bool EnsureTakeDamageWidgetClass();
+	void TriggerTakeDamageFeedback();
+	void StartTakeDamageFeedback();
+	bool UpdateTakeDamageFeedback(float DeltaTime);
+	void SetTakeDamageOpacity(float Opacity) const;
+	void StopTakeDamageFeedback();
 	bool EnsureFadeScreenWidgetClass();
 	void ApplyBossClearAnimation(float ElapsedTime) const;
 	void ApplyWidgetAnimationState(UWidget* TargetWidget, float Opacity, const FVector2D& Scale, const FVector2D& Translation, float Angle = 0.0f) const;
+	void PlayBGMByMode(bool bUseMainMenuBGM);
+	void ResolveBGMSoundAssets();
+	float GetCurrentBGMVolume() const;
+
+	UFUNCTION()
+	void HandleBGMFinished();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> PauseAction;
@@ -135,6 +162,48 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UInGameHUD> HUDWidgetInstance;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage")
+	TSubclassOf<UUserWidget> TakeDamageWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> TakeDamageWidgetInstance;
+
+	UPROPERTY()
+	TObjectPtr<UImage> TakeDamageBloodImage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float TakeDamagePeakOpacity = 0.9f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float TakeDamageFadeInDuration = 0.06f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (ClampMin = "0.05", UIMin = "0.05"))
+	float TakeDamageFadeOutDuration = 0.65f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (ClampMin = "0.05", UIMin = "0.05"))
+	float TakeDamageRetriggerInterval = 0.18f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USoundBase> MainMenuBGMSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USoundBase> InGameBGMSound;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> BGMComponent;
+
+	bool bIsMainMenuBGMMode = false;
+	bool bIsStoppingBGM = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float MasterBGMVolume = 0.7f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float MainMenuBGMVolume = 0.75f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float InGameBGMVolume = 0.65f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> FadeScreenWidgetClass;
@@ -174,6 +243,12 @@ protected:
 
 	FTSTicker::FDelegateHandle FadeToClearResultTickerHandle;
 	float FadeToClearResultElapsedTime = 0.0f;
+
+	FTSTicker::FDelegateHandle TakeDamageTickerHandle;
+	float TakeDamageElapsedTime = 0.0f;
+	float LastTakeDamageTriggerTime = -1000.0f;
+	bool bTakeDamageActive = false;
+	bool bTakeDamageQueued = false;
 
 	bool bBossClearSequenceStarted = false;
 

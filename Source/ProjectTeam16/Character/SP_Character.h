@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
 #include "ProjectTeam16/Cube/OptionTypes.h"
 #include "SP_Character.generated.h"
+
+class UUserWidget;
 
 UCLASS()
 class ASP_Character : public ACharacter
@@ -130,6 +133,35 @@ public:
 	class USoundBase* HitVoiceSound;
 
 private:
+	bool EnsureHitFeedbackWidgetClass();
+	void TriggerHitFeedback();
+	void StartHitFeedback();
+	bool UpdateHitFeedback(float DeltaTime);
+	void SetHitFeedbackOpacity(float Opacity) const;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> HitFeedbackWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> HitFeedbackWidgetInstance;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float HitFeedbackPeakOpacity = 0.9f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float HitFeedbackFadeInDuration = 0.05f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (AllowPrivateAccess = "true", ClampMin = "0.05"))
+	float HitFeedbackFadeOutDuration = 0.7f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Damage", meta = (AllowPrivateAccess = "true", ClampMin = "0.05"))
+	float HitFeedbackRetriggerInterval = 0.18f;
+
+	FTSTicker::FDelegateHandle HitFeedbackTickerHandle;
+	float HitFeedbackElapsed = 0.0f;
+	float LastHitFeedbackTriggerTime = -1000.0f;
+	bool bHitFeedbackActive = false;
+	bool bHitFeedbackQueued = false;
 	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
 	void SpawnOrUpdateHandWeapon(bool bIsRightHand);
 

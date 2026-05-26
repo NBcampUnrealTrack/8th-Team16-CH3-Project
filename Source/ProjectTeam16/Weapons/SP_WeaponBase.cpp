@@ -12,6 +12,12 @@
 #include "DrawDebugHelpers.h"
 #include "ProjectTeam16/Character/SP_Character.h"
 
+namespace
+{
+    constexpr float WeaponFireVolumeMultiplier = 4.0f;
+    constexpr float WeaponImpactVolumeMultiplier = 4.0f;
+}
+
 ASP_WeaponBase::ASP_WeaponBase()
 {
     
@@ -88,7 +94,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
     
     if (CurrentStats.FireSound)
     {
-        UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation);
+        UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation, FRotator::ZeroRotator, WeaponFireVolumeMultiplier);
     }
 
     // 총구 화염 이펙트를 조준선 정면을 바라보도록 정렬하여 고정 스폰
@@ -204,7 +210,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                                 UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
                             if (CurrentStats.ImpactSound)
                             {
-                                UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint);
+                                UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint, FRotator::ZeroRotator, WeaponImpactVolumeMultiplier);
                             }
                             // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
                             if (HitActor->ActorHasTag(TEXT("Zombie")))
@@ -305,7 +311,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                 if (CurrentStats.ImpactEffect)
                     UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
                 if (CurrentStats.ImpactSound)
-                    UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, HitResult.ImpactPoint);
+                    UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, HitResult.ImpactPoint, FRotator::ZeroRotator, WeaponImpactVolumeMultiplier);
 
                 // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
                 if (HitActor->ActorHasTag(TEXT("Zombie")))

@@ -12,12 +12,16 @@
 #include "ProjectTeam16/UI/LevelUpWidget.h"
 #include "ProjectTeam16/Cube/OptionWidget.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
+#include "Components/AudioComponent.h"
+#include "Components/Image.h"
 #include "Components/Widget.h"
+#include "Sound/SoundBase.h"
 
 void ATeam16PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ResolveBGMSoundAssets();
 	PlayFadeOut();
 }
 
@@ -283,6 +287,7 @@ void ATeam16PlayerController::ShowInGameHUD()
 		PlayerCharacter->SyncHUDValues();
 	}
 	HUDWidgetInstance->UpdateZombieKillCount(ZombieKillCount);
+	PlayInGameBGM();
 
 	StartGameTimer();
 }
@@ -294,7 +299,9 @@ void ATeam16PlayerController::HideInGameHUD()
 		HUDWidgetInstance->Hide();
 	}
 
+	StopTakeDamageFeedback();
 	StopGameTimer();
+	StopBGM();
 }
 
 void ATeam16PlayerController::UpdateHUDHealth(float CurrentHealth, float MaxHealth)
@@ -401,6 +408,7 @@ void ATeam16PlayerController::RegisterDamageTaken(float DamageAmount)
 	}
 
 	TotalDamageTaken += DamageAmount;
+	TriggerTakeDamageFeedback();
 }
 
 void ATeam16PlayerController::ShowGameOver()
@@ -412,6 +420,7 @@ void ATeam16PlayerController::ShowGameOver()
 	}
 
 	HideInGameHUD();
+	StopBGM();
 
 	if (PauseMenuWidgetInstance)
 	{
@@ -695,6 +704,194 @@ bool ATeam16PlayerController::EnsureFadeScreenWidgetClass()
 	return FadeScreenWidgetClass != nullptr;
 }
 
+bool ATeam16PlayerController::EnsureTakeDamageWidgetClass()
+{
+	if (TakeDamageWidgetClass)
+	{
+		return true;
+	}
+
+	TakeDamageWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/HUD/WBP_TakeDamage.WBP_TakeDamage_C"));
+	if (!TakeDamageWidgetClass)
+	{
+		TakeDamageWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_TakeDamage.WBP_TakeDamage_C"));
+	}
+
+	if (!TakeDamageWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TakeDamage feedback: Failed to load WBP_TakeDamage class."));
+	}
+
+	return TakeDamageWidgetClass != nullptr;
+}
+
+void ATeam16PlayerController::SetTakeDamageOpacity(float Opacity) const
+{
+	const float ClampedOpacity = FMath::Clamp(Opacity, 0.0f, 1.0f);
+
+	if (TakeDamageWidgetInstance)
+	{
+		TakeDamageWidgetInstance->SetRenderOpacity(ClampedOpacity);
+	}
+
+	if (TakeDamageBloodImage)
+	{
+		TakeDamageBloodImage->SetRenderOpacity(ClampedOpacity);
+	}
+}
+
+void ATeam16PlayerController::StopTakeDamageFeedback()
+{
+	SetTakeDamageOpacity(0.0f);
+	bTakeDamageActive = false;
+	bTakeDamageQueued = false;
+
+	if (TakeDamageTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TakeDamageTickerHandle);
+		TakeDamageTickerHandle.Reset();
+	}
+}
+
+void ATeam16PlayerController::StartTakeDamageFeedback()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (TakeDamageWidgetInstance && !TakeDamageWidgetInstance->IsInViewport())
+	{
+		TakeDamageWidgetInstance->AddToViewport(1200);
+	}
+
+	if (TakeDamageWidgetInstance)
+	{
+		TakeDamageWidgetInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (TakeDamageBloodImage)
+	{
+		TakeDamageBloodImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	TakeDamageElapsedTime = 0.0f;
+	bTakeDamageActive = true;
+	bTakeDamageQueued = false;
+	LastTakeDamageTriggerTime = World->GetTimeSeconds();
+	SetTakeDamageOpacity(0.0f);
+
+	if (TakeDamageTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TakeDamageTickerHandle);
+		TakeDamageTickerHandle.Reset();
+	}
+
+	TakeDamageTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ATeam16PlayerController::UpdateTakeDamageFeedback)
+	);
+}
+
+void ATeam16PlayerController::TriggerTakeDamageFeedback()
+{
+	if (!EnsureTakeDamageWidgetClass())
+	{
+		return;
+	}
+
+	if (!TakeDamageWidgetInstance)
+	{
+		TakeDamageWidgetInstance = CreateWidget<UUserWidget>(this, TakeDamageWidgetClass);
+	}
+
+	if (!TakeDamageWidgetInstance)
+	{
+		return;
+	}
+
+	if (!TakeDamageWidgetInstance->IsInViewport())
+	{
+		TakeDamageWidgetInstance->AddToViewport(1200);
+	}
+
+	if (!TakeDamageBloodImage)
+	{
+		TakeDamageBloodImage = Cast<UImage>(TakeDamageWidgetInstance->GetWidgetFromName(TEXT("BloodImage")));
+		if (!TakeDamageBloodImage)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("TakeDamage feedback: BloodImage widget not found. Falling back to whole-widget fade."));
+		}
+	}
+	SetTakeDamageOpacity(0.0f);
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	if (bTakeDamageActive && (CurrentTime - LastTakeDamageTriggerTime) < TakeDamageRetriggerInterval)
+	{
+		bTakeDamageQueued = true;
+		return;
+	}
+
+	StartTakeDamageFeedback();
+}
+
+bool ATeam16PlayerController::UpdateTakeDamageFeedback(float DeltaTime)
+{
+	if (!TakeDamageWidgetInstance)
+	{
+		TakeDamageTickerHandle.Reset();
+		bTakeDamageActive = false;
+		bTakeDamageQueued = false;
+		return false;
+	}
+
+	TakeDamageElapsedTime += DeltaTime;
+
+	const float FadeIn = FMath::Max(0.01f, TakeDamageFadeInDuration);
+	const float FadeOut = FMath::Max(0.05f, TakeDamageFadeOutDuration);
+	const float Total = FadeIn + FadeOut;
+	const float PeakOpacity = FMath::Clamp(TakeDamagePeakOpacity, 0.0f, 1.0f);
+
+	float Opacity = 0.0f;
+	if (TakeDamageElapsedTime <= FadeIn)
+	{
+		const float Alpha = FMath::Clamp(TakeDamageElapsedTime / FadeIn, 0.0f, 1.0f);
+		Opacity = PeakOpacity * Alpha;
+	}
+	else if (TakeDamageElapsedTime <= Total)
+	{
+		const float FadeAlpha = FMath::Clamp((TakeDamageElapsedTime - FadeIn) / FadeOut, 0.0f, 1.0f);
+		Opacity = PeakOpacity * (1.0f - FadeAlpha);
+	}
+
+	SetTakeDamageOpacity(Opacity);
+
+	if (TakeDamageElapsedTime < Total)
+	{
+		return true;
+	}
+
+	SetTakeDamageOpacity(0.0f);
+	bTakeDamageActive = false;
+
+	UWorld* World = GetWorld();
+	const bool bCanRetrigger = World && (World->GetTimeSeconds() - LastTakeDamageTriggerTime >= TakeDamageRetriggerInterval);
+	if (bTakeDamageQueued && bCanRetrigger)
+	{
+		StartTakeDamageFeedback();
+		return true;
+	}
+
+	bTakeDamageQueued = false;
+	TakeDamageTickerHandle.Reset();
+	return false;
+}
+
 void ATeam16PlayerController::ShowClearResult()
 {
 	UWorld* World = GetWorld();
@@ -704,6 +901,7 @@ void ATeam16PlayerController::ShowClearResult()
 	}
 
 	HideInGameHUD();
+	StopBGM();
 
 	if (PauseMenuWidgetInstance)
 	{
@@ -879,6 +1077,100 @@ void ATeam16PlayerController::SetGameTimerStartSeconds(int32 NewStartSeconds)
 	GameTimerRemainingSeconds = GameTimerStartSeconds;
 	SurvivalElapsedSeconds = 0;
 	UpdateHUDTime();
+}
+
+void ATeam16PlayerController::PlayMainMenuBGM()
+{
+	PlayBGMByMode(true);
+}
+
+void ATeam16PlayerController::PlayInGameBGM()
+{
+	PlayBGMByMode(false);
+}
+
+void ATeam16PlayerController::StopBGM()
+{
+	bIsStoppingBGM = true;
+
+	if (BGMComponent)
+	{
+		BGMComponent->OnAudioFinished.RemoveDynamic(this, &ATeam16PlayerController::HandleBGMFinished);
+		BGMComponent->Stop();
+		BGMComponent = nullptr;
+	}
+
+	bIsStoppingBGM = false;
+}
+
+void ATeam16PlayerController::PlayBGMByMode(bool bUseMainMenuBGM)
+{
+	ResolveBGMSoundAssets();
+	USoundBase* TargetSound = bUseMainMenuBGM ? MainMenuBGMSound : InGameBGMSound;
+	if (!TargetSound)
+	{
+		return;
+	}
+
+	// 이미 같은 모드 BGM이 재생중이면 다시 재생하지 않습니다.
+	if (BGMComponent && BGMComponent->IsPlaying() && bIsMainMenuBGMMode == bUseMainMenuBGM)
+	{
+		return;
+	}
+
+	StopBGM();
+	bIsMainMenuBGMMode = bUseMainMenuBGM;
+	bIsStoppingBGM = false;
+
+	BGMComponent = UGameplayStatics::SpawnSound2D(this, TargetSound, 1.0f, 1.0f, 0.0f, nullptr, true, false);
+	if (!BGMComponent)
+	{
+		return;
+	}
+
+	BGMComponent->bIsUISound = bUseMainMenuBGM;
+	BGMComponent->SetVolumeMultiplier(GetCurrentBGMVolume());
+	BGMComponent->OnAudioFinished.AddDynamic(this, &ATeam16PlayerController::HandleBGMFinished);
+}
+
+void ATeam16PlayerController::ResolveBGMSoundAssets()
+{
+	if (!MainMenuBGMSound)
+	{
+		MainMenuBGMSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/UI/MainMenu.MainMenu"));
+	}
+
+	if (!InGameBGMSound)
+	{
+		InGameBGMSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/UI/InGame.InGame"));
+	}
+}
+
+void ATeam16PlayerController::HandleBGMFinished()
+{
+	if (bIsStoppingBGM || !BGMComponent)
+	{
+		return;
+	}
+
+	// SoundWave Loop 설정 여부와 상관없이 강제로 반복 재생합니다.
+	BGMComponent->Play(0.0f);
+}
+
+void ATeam16PlayerController::SetBGMVolume(float NewVolume)
+{
+	MasterBGMVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+
+	if (BGMComponent)
+	{
+		BGMComponent->SetVolumeMultiplier(GetCurrentBGMVolume());
+	}
+}
+
+float ATeam16PlayerController::GetCurrentBGMVolume() const
+{
+	const float ModeVolume = bIsMainMenuBGMMode ? MainMenuBGMVolume : InGameBGMVolume;
+	return FMath::Clamp(MasterBGMVolume * ModeVolume, 0.0f, 1.0f);
 }
 /*
 void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()

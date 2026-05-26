@@ -13,6 +13,7 @@
 #include "Team16PlayerController.h"
 #include "ProjectTeam16/Weapons/SP_WeaponType.h"
 #include "ProjectTeam16/Cube/OptionWidget.h"
+#include "Blueprint/UserWidget.h"
 
 ASP_Character::ASP_Character()
 {
@@ -134,6 +135,8 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 			// 인자값을 비워두어 '언리얼 에디터(사운드 큐)' 세팅을 100% 그대로 반영합니다.
 			UGameplayStatics::PlaySoundAtLocation(this, HitVoiceSound, GetActorLocation());
 		}
+
+		TriggerHitFeedback();
 	}
 
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
@@ -154,6 +157,154 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	}
 
 	return ActualDamage;
+}
+
+bool ASP_Character::EnsureHitFeedbackWidgetClass()
+{
+	if (HitFeedbackWidgetClass)
+	{
+		return true;
+	}
+
+	HitFeedbackWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/HUD/WBP_TakeDamage.WBP_TakeDamage_C"));
+	if (!HitFeedbackWidgetClass)
+	{
+		HitFeedbackWidgetClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_TakeDamage.WBP_TakeDamage_C"));
+	}
+
+	return HitFeedbackWidgetClass != nullptr;
+}
+
+void ASP_Character::SetHitFeedbackOpacity(float Opacity) const
+{
+	if (!HitFeedbackWidgetInstance)
+	{
+		return;
+	}
+
+	HitFeedbackWidgetInstance->SetRenderOpacity(FMath::Clamp(Opacity, 0.0f, 1.0f));
+}
+
+void ASP_Character::StartHitFeedback()
+{
+	UWorld* World = GetWorld();
+	if (!World || !HitFeedbackWidgetInstance)
+	{
+		return;
+	}
+
+	if (!HitFeedbackWidgetInstance->IsInViewport())
+	{
+		HitFeedbackWidgetInstance->AddToViewport(1200);
+	}
+	HitFeedbackWidgetInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	HitFeedbackElapsed = 0.0f;
+	bHitFeedbackActive = true;
+	bHitFeedbackQueued = false;
+	LastHitFeedbackTriggerTime = World->GetTimeSeconds();
+	SetHitFeedbackOpacity(0.0f);
+
+	if (HitFeedbackTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HitFeedbackTickerHandle);
+		HitFeedbackTickerHandle.Reset();
+	}
+
+	HitFeedbackTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ASP_Character::UpdateHitFeedback)
+	);
+}
+
+void ASP_Character::TriggerHitFeedback()
+{
+	if (!EnsureHitFeedbackWidgetClass())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	if (!HitFeedbackWidgetInstance)
+	{
+		HitFeedbackWidgetInstance = CreateWidget<UUserWidget>(PC, HitFeedbackWidgetClass);
+	}
+
+	if (!HitFeedbackWidgetInstance)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	if (bHitFeedbackActive && (CurrentTime - LastHitFeedbackTriggerTime) < HitFeedbackRetriggerInterval)
+	{
+		bHitFeedbackQueued = true;
+		return;
+	}
+
+	StartHitFeedback();
+}
+
+bool ASP_Character::UpdateHitFeedback(float DeltaTime)
+{
+	if (!HitFeedbackWidgetInstance)
+	{
+		HitFeedbackTickerHandle.Reset();
+		bHitFeedbackActive = false;
+		bHitFeedbackQueued = false;
+		return false;
+	}
+
+	HitFeedbackElapsed += DeltaTime;
+
+	const float FadeIn = FMath::Max(0.01f, HitFeedbackFadeInDuration);
+	const float FadeOut = FMath::Max(0.05f, HitFeedbackFadeOutDuration);
+	const float Total = FadeIn + FadeOut;
+	const float PeakOpacity = FMath::Clamp(HitFeedbackPeakOpacity, 0.0f, 1.0f);
+
+	float Opacity = 0.0f;
+	if (HitFeedbackElapsed <= FadeIn)
+	{
+		const float InAlpha = FMath::Clamp(HitFeedbackElapsed / FadeIn, 0.0f, 1.0f);
+		Opacity = PeakOpacity * InAlpha;
+	}
+	else if (HitFeedbackElapsed <= Total)
+	{
+		const float OutAlpha = FMath::Clamp((HitFeedbackElapsed - FadeIn) / FadeOut, 0.0f, 1.0f);
+		Opacity = PeakOpacity * (1.0f - OutAlpha);
+	}
+
+	SetHitFeedbackOpacity(Opacity);
+
+	if (HitFeedbackElapsed < Total)
+	{
+		return true;
+	}
+
+	SetHitFeedbackOpacity(0.0f);
+	bHitFeedbackActive = false;
+
+	UWorld* World = GetWorld();
+	const bool bCanRetrigger = World && (World->GetTimeSeconds() - LastHitFeedbackTriggerTime >= HitFeedbackRetriggerInterval);
+	if (bHitFeedbackQueued && bCanRetrigger)
+	{
+		StartHitFeedback();
+		return true;
+	}
+
+	bHitFeedbackQueued = false;
+	HitFeedbackTickerHandle.Reset();
+	return false;
 }
 
 void ASP_Character::SyncHUDValues()

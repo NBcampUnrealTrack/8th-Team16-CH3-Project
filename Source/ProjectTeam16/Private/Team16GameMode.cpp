@@ -84,6 +84,7 @@ void ATeam16GameMode::ShowMainMenu()
             if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(PC))
             {
                 Team16PlayerController->HideInGameHUD();
+                Team16PlayerController->PlayMainMenuBGM();
             }
 
             PC->bShowMouseCursor = true;
