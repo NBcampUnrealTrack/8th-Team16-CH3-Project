@@ -45,7 +45,12 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
     FName MuzzleSocketName = TEXT("Muzzle");
     FVector MuzzleLocation = WeaponMesh->DoesSocketExist(MuzzleSocketName) ? WeaponMesh->GetSocketLocation(MuzzleSocketName) : GetActorLocation();
 
-    if (CurrentStats.FireSound) UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation);
+    
+    if (CurrentStats.FireSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation);
+    }
+
     if (CurrentStats.MuzzleFlash) UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentStats.MuzzleFlash, WeaponMesh, MuzzleSocketName, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
 
     bool bIsShotgun = false;
@@ -153,8 +158,9 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                             if (CurrentStats.ImpactEffect)
                                 UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
                             if (CurrentStats.ImpactSound)
+                            {
                                 UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.ImpactSound, Hit.ImpactPoint);
-
+                            }
                             // 맞은 대상이 좀비일 때만 대미지 팝업 연산 누적
                             if (HitActor->ActorHasTag(TEXT("Zombie")))
                             {
@@ -174,7 +180,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                                 if (!bIsShotgun)
                                 {
 #if ENABLE_WEAPON_DEBUG
-                                    DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 15.0f, 8, FColor::Purple, false, 2.0f, 0, 1.5f);
+                                    //DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 15.0f, 8, FColor::Purple, false, 2.0f, 0, 1.5f);
 
                                     FActorSpawnParameters TextSpawnParams;
                                     TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -274,7 +280,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
                     if (!bIsShotgun)
                     {
 #if ENABLE_WEAPON_DEBUG
-                        DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 12.0f, 8, FColor::Red, false, 2.0f, 0, 1.0f);
+                        //DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 12.0f, 8, FColor::Red, false, 2.0f, 0, 1.0f);
 
                         FActorSpawnParameters TextSpawnParams;
                         TextSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
