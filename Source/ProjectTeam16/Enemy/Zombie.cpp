@@ -89,11 +89,24 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
     const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
     FVector ActualHitLocation = GetActorLocation();
 
-    if (HitSound) UGameplayStatics::PlaySoundAtLocation(this, HitSound, ActualHitLocation);
     if (HitParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticle, ActualHitLocation, FRotator::ZeroRotator);
 
-    Health = FMath::Clamp(Health - ActualDamage, 0.0f, MaxHealth);
+    // 2. 이 코드가 최종적으로 작동하게 둡니다.
+    if (HitSound)
+    {
+        float CurrentTime = GetWorld()->GetTimeSeconds();
 
+        if (CurrentTime - LastHitSoundTime >= 0.05f)
+        {
+            // [수정] 7번째 인자에 감쇄 설정을 넣고, 8번째 인자에 nullptr(동시성 생략)을 배치합니다.
+            UGameplayStatics::PlaySoundAtLocation(this, HitSound, ActualHitLocation, 1.0f, 1.0f, 0.0f, HitSoundAttenuation, nullptr);
+
+            LastHitSoundTime = CurrentTime;
+        }
+    }
+ 
+
+    Health = FMath::Clamp(Health - ActualDamage, 0.0f, MaxHealth);
     if (ActorHasTag(TEXT("Boss")))
     {
         if (ATeam16PlayerController* PlayerController = Cast<ATeam16PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
@@ -110,6 +123,8 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
         GetWorldTimerManager().ClearTimer(AttackTimerHandle);
         GetWorldTimerManager().ClearTimer(SeeTimerHandle);
         GetWorldTimerManager().ClearTimer(ResetChaseTimerHandle);
+        GetWorldTimerManager().ClearTimer(HitStunTimerHandle);     // [추가] 피격 타이머도 제거
+        GetWorldTimerManager().ClearTimer(StopMovementTimerHandle); // [추가] 공격 정지 타이머도 제거
 
         if (AAIController* AIC = Cast<AAIController>(GetController())) AIC->StopMovement();
         if (GetCharacterMovement()) GetCharacterMovement()->DisableMovement();
@@ -142,9 +157,48 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
         // 즉시 Destroy하지 않고, 애니메이션이 재생될 최소 1.0초의 유예를 준 뒤 삭제
         GetWorldTimerManager().SetTimer(ResetChaseTimerHandle, this, &AZombie::HandleDeathCleanup, 1.0f, false);
     }
+    else
+    {
+        // ================= [여기서부터 추가] 좀비가 살아있을 때만 0.2초 경직 적용 =================
+
+        // 만약 공격 시 3초 정지 타이머가 이미 도는 중이라면 피격 경직(0.2초)을 무시합니다. (3초 정지가 더 기니까 유지)
+        if (!GetWorldTimerManager().IsTimerActive(StopMovementTimerHandle))
+        {
+            if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+            {
+                MovementComp->StopMovementImmediately();
+                MovementComp->DisableMovement();
+            }
+
+            // 0.2초 뒤에 움직임을 복구하는 타이머 세팅
+            GetWorldTimerManager().SetTimer(HitStunTimerHandle, this, &AZombie::ResumeMovementFromHit, 0.2f, false);
+        }
+        // =================================================================================
+    }
 
     return ActualDamage;
 }
+
+// [추가] 피격 경직 해제 함수 구현
+void AZombie::ResumeMovementFromHit()
+{
+    if (bIsDead) return;
+
+    // 공격 정지 타이머가 돌고 있지 않을 때만 이동 모드를 걷기(Walking)로 복구
+    if (!GetWorldTimerManager().IsTimerActive(StopMovementTimerHandle))
+    {
+        if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+        {
+            MovementComp->SetMovementMode(MOVE_Walking);
+        }
+
+        if (IsValid(TargetPlayer))
+        {
+            ChasePlayer();
+        }
+    }
+}
+
 
 void AZombie::HandleDeathCleanup()
 {
@@ -181,9 +235,39 @@ void AZombie::AttackLoop()
     float CurrentTime = GetWorld()->GetTimeSeconds();
     if (CurrentTime - LastAttackTime >= 1.5f)
     {
+        // 1. 데미지 적용 및 로그
         UGameplayStatics::ApplyDamage(TargetPlayer, DamageAmount, GetController(), this, nullptr);
         GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Zombie Attack!"));
         LastAttackTime = CurrentTime;
+
+        // 2. [추가] 좀비 이동 정지 로직
+        if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+        {
+            // 좀비의 이동속도를 0으로 만들고 바닥에 멈춰 세웁니다.
+            MovementComp->StopMovementImmediately();
+            MovementComp->DisableMovement();
+        }
+
+        // 3. [추가] 3초 뒤에 ResumeMovement 함수를 실행하는 타이머 설정
+        GetWorldTimerManager().SetTimer(StopMovementTimerHandle, this, &AZombie::ResumeMovement, 3.0f, false);
+    }
+}
+
+// 4. [추가] 3초 뒤 정지를 풀어주는 함수 구현
+void AZombie::ResumeMovement()
+{
+    if (bIsDead) return;
+
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        // 좀비가 다시 걸어 다닐 수 있도록 이동 모드를 기본(Walking)으로 복구합니다.
+        MovementComp->SetMovementMode(MOVE_Walking);
+    }
+
+    // 공격 범위를 벗어나지 않았다면 플레이어를 계속 추적하도록 유도
+    if (IsValid(TargetPlayer))
+    {
+        ChasePlayer();
     }
 }
 
