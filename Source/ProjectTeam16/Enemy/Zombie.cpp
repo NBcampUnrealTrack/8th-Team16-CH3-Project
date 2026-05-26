@@ -171,7 +171,7 @@ float AZombie::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AContro
             }
 
             // 0.2초 뒤에 움직임을 복구하는 타이머 세팅
-            GetWorldTimerManager().SetTimer(HitStunTimerHandle, this, &AZombie::ResumeMovementFromHit, 0.5f, false);
+            GetWorldTimerManager().SetTimer(HitStunTimerHandle, this, &AZombie::ResumeMovementFromHit, 0.3f, false);
         }
         // =================================================================================
     }
