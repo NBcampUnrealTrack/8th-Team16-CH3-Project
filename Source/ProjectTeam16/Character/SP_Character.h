@@ -125,6 +125,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	FWeaponData RightWeaponData;
 
+	// ◀ 플레이어 캐릭터가 피격되었을 때 낼 신음소리 사운드 큐 등록용 변수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound|PlayerEffects")
+	class USoundBase* HitVoiceSound;
+
 private:
 	// 내부 무기 스폰 및 외형/스탯 데이터 테이블 동기화용 함수
 	void SpawnOrUpdateHandWeapon(bool bIsRightHand);

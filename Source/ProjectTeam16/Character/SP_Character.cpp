@@ -57,7 +57,7 @@ ASP_Character::ASP_Character()
 	// 초기 포인터 안전하게 초기화
 	LeftHandWeapon = nullptr;
 	RightHandWeapon = nullptr;
-
+	HitVoiceSound = nullptr;
 
 	CubeCritRate = 5.0f;  // 기본 크리티컬 확률 10%
 	CubeCritDMG = 1.5f;   // 추가 크리티컬 데미지 50% 
@@ -125,6 +125,16 @@ float ASP_Character::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	const float PreviousHealth = CurrentHealth;
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth);
 	const float AppliedDamage = PreviousHealth - CurrentHealth;
+
+	// [사운드 추가]: 실제로 체력이 깎였고, 아직 플레이어가 살아있는 상태일 때만 소리 재생
+	if (AppliedDamage > 0.0f && CurrentHealth > 0.0f)
+	{
+		if (HitVoiceSound)
+		{
+			// 인자값을 비워두어 '언리얼 에디터(사운드 큐)' 세팅을 100% 그대로 반영합니다.
+			UGameplayStatics::PlaySoundAtLocation(this, HitVoiceSound, GetActorLocation());
+		}
+	}
 
 	if (ATeam16PlayerController* Team16PlayerController = Cast<ATeam16PlayerController>(GetController()))
 	{
