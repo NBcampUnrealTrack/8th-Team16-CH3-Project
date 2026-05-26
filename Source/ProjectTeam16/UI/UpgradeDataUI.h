@@ -15,6 +15,7 @@ enum class EUpgradeType : uint8
     WeaponEnhance   UMETA(DisplayName = "무기 강화"),
     NewWeapon       UMETA(DisplayName = "새로운 무기"),
     WeaponCombine   UMETA(DisplayName = "무기 조합"),
+    EvolvedWeaponEnhance UMETA(DisplayName = "진화 무기 조합"),
 };
 
 USTRUCT(BlueprintType)

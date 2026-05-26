@@ -83,8 +83,8 @@ void ASP_Character::BeginPlay()
 	// 게임 시작 시 기본 권총을 왼손 오른손에 샷건 각각 지급
 	LeftWeaponData.WeaponType = EWeaponType::Pistol;
 	LeftWeaponData.EnhanceLevel = 1;
-RightWeaponData.WeaponType = EWeaponType::Shotgun;
-    RightWeaponData.EnhanceLevel = 1;
+	RightWeaponData.WeaponType = EWeaponType::Shotgun;
+	RightWeaponData.EnhanceLevel = 1;
 
 	SpawnOrUpdateHandWeapon(false); // 왼손 스폰
 	SpawnOrUpdateHandWeapon(true);  // 오른손 스폰
@@ -202,7 +202,7 @@ void ASP_Character::AddExperience(int32 ExpAmount)
 	if (bLeveledUp)
 	{
 		if (ATeam16PlayerController* PC = Cast<ATeam16PlayerController>(GetController()))
-		{	
+		{
 			// 헤더파일 확인 결과 OpenLevelUpUI가 정의되어 있습니다.
 			PC->OpenLevelUpUI();
 		}
@@ -598,7 +598,7 @@ void ASP_Character::ApplyCubeOptions(const TArray<FOptionLine>& Options)
 			if (!Weapon || !GunDataTable) return;
 
 			// "무기이름_강화레벨" 형식으로 데이터 테이블 행을 찾습니다.
-		    // 예: Pistol 무기이고 3강이면 행 이름은 "Pistol_3"이 됩니다.
+			// 예: Pistol 무기이고 3강이면 행 이름은 "Pistol_3"이 됩니다.
 			FString BaseName = StaticEnum<EWeaponType>()->GetNameStringByValue((int64)WeaponData.WeaponType);
 			FString RowNameString = FString::Printf(TEXT("%s_%d"), *BaseName, WeaponData.EnhanceLevel);
 
@@ -629,10 +629,10 @@ void ASP_Character::ApplyCubeOptions(const TArray<FOptionLine>& Options)
 
 			/* 관통 능력 적용
 			if (bCubePenetration)
-		    Weapon->SetSpecialAbility(EWeaponSpecialAbility::Penetration);
+			Weapon->SetSpecialAbility(EWeaponSpecialAbility::Penetration);
 			Weapon->SetWeaponStats(UpdatedStats);
 			*/
-			
+
 			// 고유 능력을 관통으로 덮어쓰지 않고 플래그 유지
 			Weapon->SetSpecialAbility(WeaponData.ActiveAbility);
 			Weapon->SetWeaponStats(UpdatedStats);
@@ -717,13 +717,12 @@ bool ASP_Character::CanEvolveShotgun() const
 
 void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon)
 {
-	// 권총 조합 (진화)
 	if (MainWeapon == EWeaponType::Pistol && CanEvolvePistol())
 	{
 		if (LeftWeaponData.WeaponType == EWeaponType::Pistol)
 		{
 			LeftWeaponData.WeaponType = EWeaponType::Requiem;
-			LeftWeaponData.EnhanceLevel = 1; // 진화 무기는 1레벨 스탯부터 다시 시작
+			LeftWeaponData.EnhanceLevel = 1;
 			SpawnOrUpdateHandWeapon(false);
 		}
 		else if (RightWeaponData.WeaponType == EWeaponType::Pistol)
@@ -734,8 +733,6 @@ void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon
 		}
 		UE_LOG(LogTemp, Log, TEXT("Pistol Evolved into Requiem!"));
 	}
-
-	// 샷건 조합 (진화)
 	else if (MainWeapon == EWeaponType::Shotgun && CanEvolveShotgun())
 	{
 		if (LeftWeaponData.WeaponType == EWeaponType::Shotgun)
@@ -751,6 +748,45 @@ void ASP_Character::CombineWeapons(EWeaponType MainWeapon, EWeaponType SubWeapon
 			SpawnOrUpdateHandWeapon(true);
 		}
 		UE_LOG(LogTemp, Log, TEXT("Shotgun Evolved into Blast!"));
+	}
+	SyncHUDValues();
+}
+
+// HasEvolvedWeapon() — WeaponData에서 직접 판별
+bool ASP_Character::HasEvolvedWeapon(EWeaponType EvolvedType) const
+{
+	return (LeftWeaponData.WeaponType == EvolvedType
+		|| RightWeaponData.WeaponType == EvolvedType);
+}
+
+// GetEvolvedWeaponEnhanceLevel() — 기존 EnhanceLevel 재사용
+int32 ASP_Character::GetEvolvedWeaponEnhanceLevel(EWeaponType EvolvedType) const
+{
+	if (LeftWeaponData.WeaponType == EvolvedType)  return LeftWeaponData.EnhanceLevel;
+	if (RightWeaponData.WeaponType == EvolvedType) return RightWeaponData.EnhanceLevel;
+	return 0;
+}
+
+// EnhanceEvolvedWeapon() — EnhanceWeapon()과 동일 구조로 SpawnOrUpdate 호출
+void ASP_Character::EnhanceEvolvedWeapon(EWeaponType EvolvedType)
+{
+	if (LeftWeaponData.WeaponType == EvolvedType
+		&& LeftWeaponData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+	{
+		LeftWeaponData.EnhanceLevel++;
+		SpawnOrUpdateHandWeapon(false);
+		UE_LOG(LogTemp, Log, TEXT("Evolved Weapon (Left) Enhanced: %s Lv.%d"),
+			*StaticEnum<EWeaponType>()->GetNameStringByValue((int64)EvolvedType),
+			LeftWeaponData.EnhanceLevel);
+	}
+	else if (RightWeaponData.WeaponType == EvolvedType
+		&& RightWeaponData.EnhanceLevel < MAX_UPGRADE_LEVEL)
+	{
+		RightWeaponData.EnhanceLevel++;
+		SpawnOrUpdateHandWeapon(true);
+		UE_LOG(LogTemp, Log, TEXT("Evolved Weapon (Right) Enhanced: %s Lv.%d"),
+			*StaticEnum<EWeaponType>()->GetNameStringByValue((int64)EvolvedType),
+			RightWeaponData.EnhanceLevel);
 	}
 	SyncHUDValues();
 }

@@ -147,6 +147,40 @@ TArray<FUpgradeData> ULevelUpWidget::BuildUpgradePool(ASP_Character* PlayerChar)
         Pool.Add(Data);
     }
 
+    // 7. 진화 무기 강화 — Requiem
+    if (PlayerChar->HasEvolvedWeapon(EWeaponType::Requiem)
+        && PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Requiem) < PlayerChar->MAX_UPGRADE_LEVEL)
+    {
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::EvolvedWeaponEnhance;
+        Data.WeaponTarget = EWeaponType::Requiem;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/RequiemPlus"));
+        Data.CardTitle = FText::FromString(TEXT("레퀴엠 강화"));
+        Data.CardDescription = FText::FromString(TEXT("레퀴엠의 성능이 향상됩니다."));
+        Data.CardLevel = FText::FromString(
+            FString::Printf(TEXT("%d / %d"),
+                PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Requiem),
+                PlayerChar->MAX_UPGRADE_LEVEL));
+        Pool.Add(Data);
+    }
+
+    // 8. 진화 무기 강화 — Blast
+    if (PlayerChar->HasEvolvedWeapon(EWeaponType::Blast)
+        && PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Blast) < PlayerChar->MAX_UPGRADE_LEVEL)
+    {
+        FUpgradeData Data;
+        Data.UpgradeType = EUpgradeType::EvolvedWeaponEnhance;
+        Data.WeaponTarget = EWeaponType::Blast;
+        Data.CardTexture = LoadCardTexture(TEXT("/Game/UI/InGameUI/png/BlastPlus"));
+        Data.CardTitle = FText::FromString(TEXT("블래스트 강화"));
+        Data.CardDescription = FText::FromString(TEXT("블래스트의 성능이 향상됩니다."));
+        Data.CardLevel = FText::FromString(
+            FString::Printf(TEXT("%d / %d"),
+                PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Blast),
+                PlayerChar->MAX_UPGRADE_LEVEL));
+        Pool.Add(Data);
+    }
+
     for (int32 i = 0; i < Pool.Num(); i++)
     {
         UE_LOG(LogTemp, Warning, TEXT("Pool[%d] Type: %d"), i, (int32)Pool[i].UpgradeType);
@@ -295,7 +329,16 @@ void ULevelUpWidget::ApplyUpgradeAndClose(int32 Index)
         case EUpgradeType::WeaponCombine:
             PlayerChar->CombineWeapons(Selected.WeaponTarget, Selected.WeaponTarget2);
             break;
+        case EUpgradeType::EvolvedWeaponEnhance:
+            UE_LOG(LogTemp, Warning, TEXT("EvolvedWeaponEnhance Called - WeaponTarget: %d"),
+                (int32)Selected.WeaponTarget);
+            PlayerChar->EnhanceEvolvedWeapon(Selected.WeaponTarget);
+            UE_LOG(LogTemp, Warning, TEXT("After EnhanceEvolvedWeapon - Pistol EvoLevel: %d, Shotgun EvoLevel: %d"),
+                PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Pistol),
+                PlayerChar->GetEvolvedWeaponEnhanceLevel(EWeaponType::Shotgun));
+            break;
         }
+
         APlayerController* PC = GetWorld()->GetFirstPlayerController();
         if (PC)
         {

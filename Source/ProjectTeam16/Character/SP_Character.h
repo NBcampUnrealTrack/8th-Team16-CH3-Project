@@ -260,7 +260,7 @@ protected:
 		UPROPERTY(BlueprintReadOnly, Category = "StatUpgrade")
 		int32 MaxStaminaLevel = 0;
 
-		const int32 MAX_UPGRADE_LEVEL = 8; // 최대 강화 수치 정의
+		const int32 MAX_UPGRADE_LEVEL = 3; // 최대 강화 수치 정의
 
 		// 💡 특정 무기를 가지고 있고, 해당 무기의 강화 수치를 반환하는 헬퍼 함수
 		int32 GetWeaponEnhanceLevel(EWeaponType WeaponType) const;
@@ -280,5 +280,12 @@ protected:
 
 		UPROPERTY(BlueprintReadOnly, Category = "Stamina")
 		float CurrentStamina = 100.0f;
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		TMap<EWeaponType, int32> EvolvedWeaponEnhanceLevels;  // 진화 무기별 강화 단계
+
+		bool HasEvolvedWeapon(EWeaponType WeaponType) const;
+		int32 GetEvolvedWeaponEnhanceLevel(EWeaponType WeaponType) const;
+		void EnhanceEvolvedWeapon(EWeaponType WeaponType);
 #pragma endregion
 };
