@@ -117,7 +117,7 @@ void ASpawnVolume::SpawnZombie()
 		TotalSpawnCount++;
 
 		// 엘리트 확률 계산 및 클래스 선택 
-		bool bSpawnElite = (TotalSpawnCount % 10 == 0);
+		bool bSpawnElite = (TotalSpawnCount % 30 == 0);
 		TSubclassOf<AZombie> SelectedClass = GetClassByWaveProbability(ElapsedMinutes, bSpawnElite);
 
 		if (SelectedClass)
