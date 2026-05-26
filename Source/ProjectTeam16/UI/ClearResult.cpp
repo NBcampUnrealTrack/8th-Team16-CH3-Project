@@ -11,19 +11,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
-namespace
-{
-	float CalculateAlphaInRange(float Time, float Start, float Duration)
-	{
-		if (Duration <= KINDA_SMALL_NUMBER)
-		{
-			return Time >= Start ? 1.0f : 0.0f;
-		}
-
-		return FMath::Clamp((Time - Start) / Duration, 0.0f, 1.0f);
-	}
-}
-
 void UClearResult::NativeConstruct()
 {
 	Super::NativeConstruct();
