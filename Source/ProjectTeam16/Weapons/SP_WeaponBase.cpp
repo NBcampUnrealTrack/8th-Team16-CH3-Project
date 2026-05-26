@@ -44,6 +44,46 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
 
     FName MuzzleSocketName = TEXT("Muzzle");
     FVector MuzzleLocation = WeaponMesh->DoesSocketExist(MuzzleSocketName) ? WeaponMesh->GetSocketLocation(MuzzleSocketName) : GetActorLocation();
+   
+
+    // [조준선 정렬 규칙] 화면 중심(십자선)이 가리키는 정확한 월드 목표 지점 계산
+    float TraceRange = (CurrentStats.Range > 0.0f) ? CurrentStats.Range : 5000.0f;
+    FVector BaseTargetLocation = MuzzleLocation + (ForwardVector * TraceRange);
+
+    APlayerController* PC = Cast<APlayerController>(GetInstigatorController());
+    if (!PC && GetOwner())
+    {
+        PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
+    }
+
+    if (PC)
+    {
+        int32 ViewportSizeX, ViewportSizeY;
+        PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+        FVector2D ScreenCenter(ViewportSizeX * 0.5f, ViewportSizeY * 0.5f);
+        FVector WorldLocation, WorldDirection;
+
+        if (UGameplayStatics::DeprojectScreenToWorld(PC, ScreenCenter, WorldLocation, WorldDirection))
+        {
+            FHitResult CameraHit;
+            FCollisionQueryParams CamParams;
+            CamParams.AddIgnoredActor(this);
+            CamParams.AddIgnoredActor(GetOwner());
+
+            FVector CamEnd = WorldLocation + (WorldDirection * TraceRange);
+
+            // 카메라 시선으로 조준선 중앙에 잡힌 실제 적/벽을 검출
+            if (GetWorld()->LineTraceSingleByChannel(CameraHit, WorldLocation, CamEnd, ECC_Visibility, CamParams))
+            {
+                BaseTargetLocation = CameraHit.ImpactPoint;
+            }
+            else
+            {
+                BaseTargetLocation = CamEnd;
+            }
+        }
+    }
 
     
     if (CurrentStats.FireSound)
@@ -51,7 +91,12 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
         UGameplayStatics::PlaySoundAtLocation(this, CurrentStats.FireSound, MuzzleLocation);
     }
 
-    if (CurrentStats.MuzzleFlash) UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentStats.MuzzleFlash, WeaponMesh, MuzzleSocketName, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
+    // 총구 화염 이펙트를 조준선 정면을 바라보도록 정렬하여 고정 스폰
+    if (CurrentStats.MuzzleFlash)
+    {
+        FRotator MuzzleRotation = (BaseTargetLocation - MuzzleLocation).Rotation();
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CurrentStats.MuzzleFlash, MuzzleLocation, MuzzleRotation);
+    }
 
     bool bIsShotgun = false;
     ASP_Character* OwnerCharacter = Cast<ASP_Character>(GetOwner());
@@ -80,7 +125,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
 
     for (int32 i = 0; i < PelletCount; i++)
     {
-        FVector FireDirection = ForwardVector;
+        FVector FireDirection = (BaseTargetLocation - MuzzleLocation).GetSafeNormal();
         if (bIsShotgun)
         {
             FireDirection.X += FMath::FRandRange(-SpreadIntensity, SpreadIntensity);
@@ -93,7 +138,7 @@ void ASP_WeaponBase::Fire(FVector ForwardVector)
         FVector EndLocation = MuzzleLocation + (FireDirection * FireRange);
 
         // 관통(Penetration) 무기 로직
-        if (MyAbility == EWeaponSpecialAbility::Penetration)
+        if (bHasPenetration)
         {
             TArray<FHitResult> HitResults;
             FCollisionQueryParams Params;
