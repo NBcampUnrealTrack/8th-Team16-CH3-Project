@@ -419,8 +419,13 @@ void ATeam16PlayerController::ShowGameOver()
 		return;
 	}
 
-	HideInGameHUD();
-	StopBGM();
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->Hide();
+	}
+	StopTakeDamageFeedback();
+	StopGameTimer();
+	ApplyGameOverBGMDuck();
 
 	if (PauseMenuWidgetInstance)
 	{
@@ -1171,6 +1176,20 @@ float ATeam16PlayerController::GetCurrentBGMVolume() const
 {
 	const float ModeVolume = bIsMainMenuBGMMode ? MainMenuBGMVolume : InGameBGMVolume;
 	return FMath::Clamp(MasterBGMVolume * ModeVolume, 0.0f, 1.0f);
+}
+
+void ATeam16PlayerController::ApplyGameOverBGMDuck()
+{
+	if (!BGMComponent || !BGMComponent->IsPlaying())
+	{
+		return;
+	}
+
+	// 게임오버에서는 음악 트랙을 바꾸지 않고 인게임 BGM 볼륨만 낮춰 연출합니다.
+	const float BaseVolume = GetCurrentBGMVolume();
+	const float DuckScale = FMath::Clamp(GameOverBGMVolumeScale, 0.0f, 1.0f);
+	BGMComponent->bIsUISound = true;
+	BGMComponent->SetVolumeMultiplier(BaseVolume * DuckScale);
 }
 /*
 void ATeam16PlayerController::CheatMaxEnhanceAllWeapons()

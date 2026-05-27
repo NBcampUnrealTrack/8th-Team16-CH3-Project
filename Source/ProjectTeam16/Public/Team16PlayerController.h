@@ -126,6 +126,7 @@ protected:
 	void PlayBGMByMode(bool bUseMainMenuBGM);
 	void ResolveBGMSoundAssets();
 	float GetCurrentBGMVolume() const;
+	void ApplyGameOverBGMDuck();
 
 	UFUNCTION()
 	void HandleBGMFinished();
@@ -204,6 +205,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
 	float InGameBGMVolume = 0.65f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|BGM", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float GameOverBGMVolumeScale = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> FadeScreenWidgetClass;
